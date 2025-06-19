@@ -1,66 +1,27 @@
-## Foundry
+# simple-p2e-game
+暗号資産であるSMP(Simple) Tokenと有効期限つきSBTであるCardを使ったシンプルなゲームでSMP Tokenを獲得するP2Eプロジェクト
+## 依頼内容
+企画もと
+https://docs.google.com/presentation/d/1rEIT8Q7S2ltjRv4ucLROBgWpdMMuG67yhcUf1ajIv24/edit?slide=id.p#slide=id.p
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+L1 testnetのGaming DEXがあるので
+https://testnet.gaming-dex.com/#/oasys-testnet/swap
 
-Foundry consists of:
+- SMPトークンを発行
+- OAS / SMPのペアを作成
+- SMPを払って自動スワップ OAS/SMP LPを追加、NFTを発行
+- OASを払って自動スワップ OAS/SMP LPを追加、NFTを発行
+- pOASを払って自動スワップ OAS/SMP LPを追加、NFTを発行
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+あたりのコントラクトを作ってもらえませんか？
 
-## Documentation
+## Gaming Dex
 
-https://book.getfoundry.sh/
+### UI
+- [testnet](https://testnet.gaming-dex.com/#/oasys-testnet/swap): ExploreでVerifyされていない
+- [mainnet](https://www.gaming-dex.com/#/defiverse/swap): ExploreでVerify済み
 
-## Usage
-
-### Build
-
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### コントラクト
+[balancer-v2](https://github.com/balancer/balancer-v2-monorepo/tree/master)を使ってる
+- Swapは[batchSwap](https://github.com/balancer/balancer-v2-monorepo/blob/master/pkg/vault/contracts/Swaps.sol#L109)あたりが参考になるとのこと
+- [Vault](https://scan-testnet.defi-verse.org/address/0x2Da016a77E290fb82F5af7051198304d57779f5d?tab=contract)コントラクトのアドレスを渡された。何なのか不明だが、肝に違いない。
