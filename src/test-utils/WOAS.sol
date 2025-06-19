@@ -6,7 +6,7 @@ import {ERC20} from "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC
 /**
  * @title WOAS
  * @dev Wrapped OAS token for BalancerV2 pool compatibility
- * Allows OAS (native currency) to be used in ERC20-based pools
+ *      Allows OAS (native currency) to be used in ERC20-based pools
  */
 contract WOAS is ERC20 {
     event Deposit(address indexed dst, uint256 wad);

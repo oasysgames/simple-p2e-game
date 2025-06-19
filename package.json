@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "forge build",
+    "build:watch": "forge build --watch",
     "test": "forge test -vvv",
     "test:watch": "forge test -vvv --watch",
     "fmt": "forge fmt"

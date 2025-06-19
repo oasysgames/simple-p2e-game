@@ -169,18 +169,27 @@ contract BalancerV2HelperTest is Test {
         uint256 amountIn = 1 ether;
         woas.approve(address(vault), amountIn);
 
-        uint256 amountOut = helper.swap(vault, pool, sender, payable(recipient), tokenIn, amountIn);
-        assertGe(amountOut, 0.99 ether);
-        assertEq(amountOut, smp.balanceOf(recipient));
+        uint256 smpOut1 = helper.swap(vault, pool, sender, payable(recipient), tokenIn, amountIn);
+        assertGe(smpOut1, 0.99 ether);
+        assertEq(smpOut1, smp.balanceOf(recipient));
 
         // SMPからWOASへスワップ
         tokenIn = _asIERC20(smp);
         amountIn = 1 ether;
         smp.approve(address(vault), amountIn);
 
-        amountOut = helper.swap(vault, pool, sender, payable(recipient), tokenIn, amountIn);
-        assertGe(amountOut, 0.99 ether);
-        assertEq(amountOut, woas.balanceOf(recipient));
+        uint256 woasOut = helper.swap(vault, pool, sender, payable(recipient), tokenIn, amountIn);
+        assertGe(woasOut, 0.99 ether);
+        assertEq(woasOut, woas.balanceOf(recipient));
+
+        // ネイティブOASからSMPへスワップ
+        tokenIn = IERC20(address(0));
+        amountIn = 1 ether;
+        vm.deal(sender, amountIn);
+
+        uint256 smpOut2 = helper.swap{value: amountIn}(vault, pool, sender, payable(recipient), tokenIn, amountIn);
+        assertGe(smpOut2, 0.99 ether);
+        assertEq(smpOut1 + smpOut2, smp.balanceOf(recipient));
     }
 
     function _createPool() internal returns (IBasePool) {
