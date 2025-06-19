@@ -56,7 +56,11 @@ jobs:
           body: |
             ## Installation
             ```bash
+            # Direct installation from GitHub release
             npm install --save-dev ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.PACKAGE }}
+
+            # Download from this page and install locally
+            npm install --save-dev ${{ env.PACKAGE }}
             ```
           files: ${{ env.PACKAGE }}
           draft: false
