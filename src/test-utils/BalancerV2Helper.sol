@@ -12,23 +12,13 @@ import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 import {WeightedPoolUserData} from "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
 
 // Balancer V2 Core Contracts
-import {ERC20} from "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC20.sol";
 import {MockRateProvider} from "@balancer-labs/v2-pool-utils/contracts/test/MockRateProvider.sol";
-import {WeightedPool} from "@balancer-labs/v2-pool-weighted/contracts/WeightedPool.sol";
-import {WeightedPoolFactory} from "@balancer-labs/v2-pool-weighted/contracts/WeightedPoolFactory.sol";
-import {MockBasicAuthorizer} from "@balancer-labs/v2-vault/contracts/test/MockBasicAuthorizer.sol";
-import {Vault} from "@balancer-labs/v2-vault/contracts/Vault.sol";
 
 // Local Interfaces
 import {IBalancerV2Helper} from "./interfaces/IBalancerV2Helper.sol";
 import {IMockSMP} from "./interfaces/IMockSMP.sol";
 import {IWeightedPoolFactory} from "./interfaces/IWeightedPoolFactory.sol";
 import {IWOAS} from "./interfaces/IWOAS.sol";
-
-// Local Contracts
-import {MockProtocolFeePercentagesProvider} from "./MockProtocolFeePercentagesProvider.sol";
-import {MockSMP} from "./MockSMP.sol";
-import {WOAS} from "./WOAS.sol";
 
 /**
  * @title BalancerV2Helper
@@ -39,44 +29,35 @@ contract BalancerV2Helper is IBalancerV2Helper {
     /// @dev Minimum swap fee percentage as per Balancer V2 protocol specification (0.0001%)
     uint256 constant MIN_SWAP_FEE_PERCENTAGE = 1e12;
 
-    /// @dev Equal weights for 50/50 pools
+    /// @notice The Balancer V2 Vault contract that handles all pool operations
+    IVault public immutable vault;
+
+    /// @notice The WeightedPoolFactory contract used to create new weighted pools
+    IWeightedPoolFactory public immutable poolFactory;
+
+    /// @dev Equal weights for 50%-50% pools (0.5 = 50% in 18-decimal fixed point)
     uint256[] equalWeights = [0.5e18, 0.5e18];
 
     /**
-     * @inheritdoc IBalancerV2Helper
+     * @notice Constructor that initializes the helper with Vault and PoolFactory contracts
+     * @param _vault The Balancer V2 Vault contract address
+     * @param _poolFactory The WeightedPoolFactory contract address
      */
-    function deployBalancerV2() external override returns (IVault, IWeightedPoolFactory, IWOAS, IMockSMP) {
-        // Deploy required ERC20 tokens for testing
-        IWOAS woas = IWOAS(address(new WOAS()));
-        IMockSMP smp = IMockSMP(address(new MockSMP()));
-
-        // Deploy vault
-        MockBasicAuthorizer authorizer = new MockBasicAuthorizer();
-        Vault vault = new Vault(authorizer, woas, 90 days, 30 days);
-
-        // Deploy pool factory
-        MockProtocolFeePercentagesProvider protocolFeeProvider = new MockProtocolFeePercentagesProvider();
-        WeightedPoolFactory factory = new WeightedPoolFactory(vault, protocolFeeProvider, 90 days, 30 days);
-
-        // Grant relayer permissions to this helper contract
-        authorizer.grantRole(vault.getActionId(vault.joinPool.selector), address(this));
-        authorizer.grantRole(vault.getActionId(vault.exitPool.selector), address(this));
-        authorizer.grantRole(vault.getActionId(vault.swap.selector), address(this));
-
-        emit BalancerV2Deployed(address(vault), address(factory), address(woas), address(smp));
-
-        return (vault, IWeightedPoolFactory(address(factory)), woas, smp);
+    constructor(IVault _vault, IWeightedPoolFactory _poolFactory) {
+        vault = _vault;
+        poolFactory = _poolFactory;
     }
 
     /**
      * @inheritdoc IBalancerV2Helper
      */
-    function createPool(IWeightedPoolFactory factory, PoolConfig memory cfg) external override returns (IBasePool) {
+    function createPool(PoolConfig memory cfg) external override returns (IBasePool) {
+        // Ensure swap fee meets minimum protocol requirements
         if (cfg.swapFeePercentage < MIN_SWAP_FEE_PERCENTAGE) {
             cfg.swapFeePercentage = MIN_SWAP_FEE_PERCENTAGE;
         }
 
-        // Token addresses must be sorted in ascending order
+        // Token addresses must be sorted in ascending order for Balancer V2 compatibility
         IERC20[] memory tokens = new IERC20[](2);
         if (cfg.tokenA < cfg.tokenB) {
             tokens[0] = cfg.tokenA;
@@ -87,56 +68,57 @@ contract BalancerV2Helper is IBalancerV2Helper {
         }
 
         // Deploy mock rate providers for each token (required by WeightedPoolFactory)
+        // Rate providers return exchange rates for tokens that may appreciate over time
         IRateProvider[] memory rateProviders = new IRateProvider[](2);
         rateProviders[0] = IRateProvider(new MockRateProvider());
         rateProviders[1] = IRateProvider(new MockRateProvider());
 
-        address pool =
-            factory.create(cfg.name, cfg.symbol, tokens, equalWeights, rateProviders, cfg.swapFeePercentage, cfg.owner);
+        // Create the weighted pool with 50/50 token distribution
+        address pool = poolFactory.create(
+            cfg.name, cfg.symbol, tokens, equalWeights, rateProviders, cfg.swapFeePercentage, cfg.owner
+        );
         emit PoolCreated(cfg.name, cfg.symbol, pool);
 
-        return WeightedPool(pool);
+        return IBasePool(pool);
     }
 
     /**
      * @inheritdoc IBalancerV2Helper
      */
     function addInitialLiquidity(
-        IVault vault,
         IBasePool pool,
         address sender,
         address recipient,
         IERC20[2] calldata tokens,
         uint256[2] calldata amounts
     ) external payable override {
-        _addLiquidity(vault, pool, sender, recipient, tokens, amounts, JoinKind.INIT);
+        _addLiquidity(pool, sender, recipient, tokens, amounts, WeightedPoolUserData.JoinKind.INIT);
     }
 
     /**
      * @inheritdoc IBalancerV2Helper
      */
     function addLiquidity(
-        IVault vault,
         IBasePool pool,
         address sender,
         address recipient,
         IERC20[2] calldata tokens,
         uint256[2] calldata amounts
     ) external payable override {
-        _addLiquidity(vault, pool, sender, recipient, tokens, amounts, JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT);
+        _addLiquidity(
+            pool, sender, recipient, tokens, amounts, WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT
+        );
     }
 
     /**
      * @inheritdoc IBalancerV2Helper
      */
-    function swap(
-        IVault vault,
-        IBasePool pool,
-        address sender,
-        address payable recipient,
-        IERC20 tokenIn,
-        uint256 amountIn
-    ) external payable override returns (uint256 amountOut) {
+    function swap(IBasePool pool, address sender, address payable recipient, IERC20 tokenIn, uint256 amountIn)
+        external
+        payable
+        override
+        returns (uint256 amountOut)
+    {
         // Get sorted token addresses from Vault
         bytes32 poolId = pool.getPoolId();
         (IERC20[] memory sortedTokens,,) = vault.getPoolTokens(poolId);
@@ -171,10 +153,11 @@ contract BalancerV2Helper is IBalancerV2Helper {
         // Deadline for this swap transaction (60 seconds from now)
         uint256 deadline = block.timestamp + 60;
 
-        // Execute swap with or without native OAS value
         if (isOAS) {
+            // Native OAS swap - forward msg.value to Vault for WOAS wrapping
             amountOut = vault.swap{value: msg.value}(singleSwap, funds, limit, deadline);
         } else {
+            // ERC20 token swap - no native value needed
             amountOut = vault.swap(singleSwap, funds, limit, deadline);
         }
     }
@@ -183,42 +166,40 @@ contract BalancerV2Helper is IBalancerV2Helper {
      * @notice Internal function to add liquidity to a pool
      */
     function _addLiquidity(
-        IVault vault,
         IBasePool pool,
         address sender,
         address recipient,
-        IERC20[2] calldata tokens,
-        uint256[2] calldata amounts,
-        JoinKind kind
+        IERC20[2] calldata _tokens,
+        uint256[2] calldata _amounts,
+        WeightedPoolUserData.JoinKind kind
     ) internal {
-        // When adding native OAS, tokens array contains zero address, so we cannot use
-        // vault-retrieved sorted tokens like in swap. Manual sorting is required.
-        IERC20[] memory sortedTokens = new IERC20[](2);
-        uint256[] memory sortedAmounts = new uint256[](2);
+        // Note: When adding native OAS, address(0) must be specified at the WOAS index position,
+        //       so tokens must not be sorted in ascending order to maintain correct indexing.
+        IERC20[] memory tokens = new IERC20[](2);
+        uint256[] memory amounts = new uint256[](2);
+        (tokens[0], tokens[1]) = (_tokens[0], _tokens[1]);
+        (amounts[0], amounts[1]) = (_amounts[0], _amounts[1]);
 
-        (uint8 a, uint8 b) = tokens[0] < tokens[1] ? (0, 1) : (1, 0);
-        (sortedTokens[0], sortedTokens[1]) = (tokens[a], tokens[b]);
-        (sortedAmounts[0], sortedAmounts[1]) = (amounts[a], amounts[b]);
-
-        // Build userdata to JoinKind specification
+        // Build userdata according to WeightedPoolUserData.JoinKind specification
         // Reference: https://docs-v2.balancer.fi/reference/joins-and-exits/pool-joins.html
         bytes memory userdata;
-        if (kind == JoinKind.INIT) {
-            // Initial liquidity provision (first join)
-            userdata = abi.encode(kind, sortedAmounts);
-        } else if (kind == JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
-            // Proportional join with exact token amounts
-            uint256 minimumBPT = 0; // No minimum BPT requirement
-            userdata = abi.encode(kind, sortedAmounts, minimumBPT);
+        if (kind == WeightedPoolUserData.JoinKind.INIT) {
+            // Initial liquidity provision (first join) - only requires token amounts
+            userdata = abi.encode(kind, amounts);
+        } else if (kind == WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
+            // Proportional join with exact token amounts - requires minimum BPT out
+            uint256 minimumBPT = 0; // No minimum BPT requirement for testing
+            userdata = abi.encode(kind, amounts, minimumBPT);
         } else {
-            revert("Invalid JoinKind");
+            revert("Invalid WeightedPoolUserData.JoinKind");
         }
 
+        // Construct the join pool request
         IVault.JoinPoolRequest memory request = IVault.JoinPoolRequest({
-            assets: _asIAsset(sortedTokens),
-            maxAmountsIn: sortedAmounts,
+            assets: _asIAsset(tokens),
+            maxAmountsIn: amounts,
             userData: userdata,
-            fromInternalBalance: false
+            fromInternalBalance: false // Use external balances (user's wallet)
         });
 
         // Execute pool join with or without native OAS value
@@ -231,7 +212,7 @@ contract BalancerV2Helper is IBalancerV2Helper {
     }
 
     /**
-     * @notice Convert IERC20 array to IAsset array
+     * @notice Convert IERC20 array to IAsset array for Vault compatibility
      */
     function _asIAsset(IERC20[] memory tokens) internal pure returns (IAsset[] memory) {
         IAsset[] memory assets = new IAsset[](tokens.length);

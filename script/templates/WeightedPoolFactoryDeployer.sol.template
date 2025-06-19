@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.7.0;
+
+contract WeightedPoolFactoryDeployer {
+    address public immutable poolFactory;
+    address public immutable feeProvider;
+
+    constructor(bytes32 salt, address vault) {
+        bytes memory poolFactoryCode = hex"__POOL_FACTORY_CODE__";
+        bytes memory feeProviderCode = hex"__FEE_PROVIDER_CODE__";
+
+        address _feeProvider;
+        assembly {
+            _feeProvider := create2(0, add(feeProviderCode, 0x20), mload(feeProviderCode), salt)
+        }
+        require(_feeProvider != address(0), "Failed to deploy ProtocolFeePercentagesProvider");
+
+        bytes memory poolFactoryConstructoArgs = abi.encode(vault, _feeProvider, 90 days, 30 days);
+        bytes memory poolFactoryDeployCode = abi.encodePacked(poolFactoryCode, poolFactoryConstructoArgs);
+
+        address _poolFactory;
+        assembly {
+            _poolFactory := create2(0, add(poolFactoryDeployCode, 0x20), mload(poolFactoryDeployCode), salt)
+        }
+        require(_poolFactory != address(0), "Failed to deploy WeightedPoolFactory");
+
+        poolFactory = _poolFactory;
+        feeProvider = _feeProvider;
+    }
+}

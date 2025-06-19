@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.7.0;
+
+import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
+
+interface IMinimumAuthorizer {
+    function DEFAULT_ADMIN_ROLE() external returns (bytes32);
+    function grantRole(bytes32 role, address account) external;
+}
+
+contract VaultDeployer {
+    address public immutable vault;
+    address public immutable authorizer;
+    address public immutable woas;
+
+    constructor(bytes32 salt) {
+        bytes memory woasCode = hex"__WOAS_CODE__";
+        bytes memory vaultCode = hex"__VAULT_CODE__";
+        bytes memory authorizerCode = hex"__AUTHORIZER_CODE__";
+
+        address _woas;
+        assembly {
+            _woas := create2(0, add(woasCode, 0x20), mload(woasCode), salt)
+        }
+        require(_woas != address(0), "Failed to deploy WOAS");
+
+        address _authorizer;
+        assembly {
+            _authorizer := create2(0, add(authorizerCode, 0x20), mload(authorizerCode), salt)
+        }
+        require(_authorizer != address(0), "Failed to deploy Authorizer");
+
+        bytes memory vaultConstructorArgs = abi.encode(_authorizer, _woas, 90 days, 30 days);
+        bytes memory vaultDeployCode = abi.encodePacked(vaultCode, vaultConstructorArgs);
+        address _vault;
+        assembly {
+            _vault := create2(0, add(vaultDeployCode, 0x20), mload(vaultDeployCode), salt)
+        }
+        require(_vault != address(0), "Failed to deploy Vault");
+
+        vault = _vault;
+        authorizer = _authorizer;
+        woas = _woas;
+    }
+
+    function grantRelayerRolesToHelper(address helper) external {
+        IVault _vault = IVault(vault);
+        IMinimumAuthorizer _authorizer = IMinimumAuthorizer(authorizer);
+
+        _authorizer.grantRole(_vault.getActionId(_vault.joinPool.selector), helper);
+        _authorizer.grantRole(_vault.getActionId(_vault.exitPool.selector), helper);
+        _authorizer.grantRole(_vault.getActionId(_vault.swap.selector), helper);
+    }
+}

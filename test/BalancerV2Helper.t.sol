@@ -11,42 +11,67 @@ import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/open
 import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 // Local Test Utilities
-import {BalancerV2Helper} from "../src/test-utils/BalancerV2Helper.sol";
+import {VaultDeployer, IMinimumAuthorizer} from "../src/test-utils/deployers/VaultDeployer.sol";
+import {WeightedPoolFactoryDeployer} from "../src/test-utils/deployers/WeightedPoolFactoryDeployer.sol";
+import {BalancerV2HelperDeployer} from "../src/test-utils/deployers/BalancerV2HelperDeployer.sol";
 import {IBalancerV2Helper} from "../src/test-utils/interfaces/IBalancerV2Helper.sol";
 import {IMockSMP} from "../src/test-utils/interfaces/IMockSMP.sol";
 import {IWeightedPoolFactory} from "../src/test-utils/interfaces/IWeightedPoolFactory.sol";
 import {IWOAS} from "../src/test-utils/interfaces/IWOAS.sol";
+import {MockSMP} from "../src/test-utils/MockSMP.sol";
+import {BalancerV2Helper} from "../src/test-utils/BalancerV2Helper.sol";
 
 contract BalancerV2HelperTest is Test {
-    BalancerV2Helper public helper;
+    IBalancerV2Helper public helper;
     IVault vault;
     IWeightedPoolFactory factory;
     IWOAS woas;
     IMockSMP smp;
+    IERC20[2] sortedTokens;
 
-    address public deployer;
-    address public poolOwner;
-    address public sender;
-    address public recipient;
+    address public deployer; // Deploys all contracts
+    address public poolOwner; // Owns and manages pools
+    address public sender; // Sends tokens in operations
+    address public recipient; // Receives tokens/BPT from operations
 
     uint256 initialBalance = 1000 ether;
 
     function setUp() public {
-        // Deployment and initial setup
+        // Create test accounts
         deployer = makeAddr("deployer");
         poolOwner = makeAddr("poolOwner");
         sender = makeAddr("sender");
         recipient = makeAddr("recipient");
 
+        // Deploy complete Balancer V2 ecosystem
         {
             vm.startPrank(deployer);
 
-            helper = new BalancerV2Helper();
-            (vault, factory, woas, smp) = helper.deployBalancerV2();
+            // Use deterministic salt for consistent deployment addresses
+            bytes32 salt = keccak256(abi.encode("DEPLOYER_SALT"));
+
+            // Deploy core Balancer V2 contracts
+            VaultDeployer vaultDeployer = new VaultDeployer(salt);
+            WeightedPoolFactoryDeployer poolFactoryDeployer =
+                new WeightedPoolFactoryDeployer(salt, vaultDeployer.vault());
+            BalancerV2HelperDeployer bv2deployer =
+                new BalancerV2HelperDeployer(salt, vaultDeployer.vault(), poolFactoryDeployer.poolFactory());
+
+            // Store contract references
+            vault = IVault(vaultDeployer.vault());
+            factory = IWeightedPoolFactory(poolFactoryDeployer.poolFactory());
+            woas = IWOAS(vaultDeployer.woas());
+            smp = IMockSMP(address(new MockSMP()));
+            helper = IBalancerV2Helper(bv2deployer.helper());
+            helper = new BalancerV2Helper(vault, factory);
+
+            // Grant relayer roles to helper contract
+            vaultDeployer.grantRelayerRolesToHelper(address(helper));
 
             vm.stopPrank();
         }
 
+        // Configure test account with tokens and permissions
         {
             vm.startPrank(sender);
 
@@ -62,6 +87,11 @@ contract BalancerV2HelperTest is Test {
 
             vm.stopPrank();
         }
+
+        // Sort tokens by address for Balancer V2 compatibility
+        (uint8 a, uint8 b) = address(woas) < address(smp) ? (0, 1) : (1, 0);
+        sortedTokens[a] = IERC20(address(woas));
+        sortedTokens[b] = IERC20(address(smp));
     }
 
     /**
@@ -75,8 +105,8 @@ contract BalancerV2HelperTest is Test {
         assertNotEq(poolId, 0x0);
 
         (IERC20[] memory tokens,,) = vault.getPoolTokens(poolId);
-        assertEq(address(tokens[0]), address(woas));
-        assertEq(address(tokens[1]), address(smp));
+        assertEq(address(tokens[0]), address(sortedTokens[0]));
+        assertEq(address(tokens[1]), address(sortedTokens[1]));
     }
 
     /**
@@ -88,10 +118,7 @@ contract BalancerV2HelperTest is Test {
 
         IBasePool pool = _createPool();
         _addInitialLiquidity(pool, 1 ether, 2 ether);
-
-        (, uint256[] memory balances,) = vault.getPoolTokens(pool.getPoolId());
-        assertEq(balances[0], 1 ether);
-        assertEq(balances[1], 2 ether);
+        _assertPoolBalances(pool, 1 ether, 2 ether);
     }
 
     /**
@@ -103,62 +130,34 @@ contract BalancerV2HelperTest is Test {
 
         // Provide initial liquidity
         IBasePool pool = _createPool();
-        (IERC20[2] memory tokens, uint256[2] memory amounts) = _addInitialLiquidity(pool, 1 ether, 2 ether);
+        _addInitialLiquidity(pool, 1 ether, 2 ether);
 
         // Add both WOAS and SMP
-        amounts[0] = 1 ether;
-        amounts[1] = 1 ether;
         woas.approve(address(vault), 1 ether);
         smp.approve(address(vault), 1 ether);
-        helper.addLiquidity(vault, pool, sender, recipient, tokens, amounts);
-
-        (, uint256[] memory balances,) = vault.getPoolTokens(pool.getPoolId());
-        assertEq(balances[0], 2 ether);
-        assertEq(balances[1], 3 ether);
+        helper.addLiquidity(pool, sender, recipient, sortedTokens, _sortedAmounts(1 ether, 1 ether));
+        _assertPoolBalances(pool, 2 ether, 3 ether);
 
         // Add WOAS only
-        amounts[0] = 1 ether;
-        amounts[1] = 0 ether;
         woas.approve(address(vault), 1 ether);
-        helper.addLiquidity(vault, pool, sender, recipient, tokens, amounts);
-
-        (, balances,) = vault.getPoolTokens(pool.getPoolId());
-        assertEq(balances[0], 3 ether);
-        assertEq(balances[1], 3 ether);
+        helper.addLiquidity(pool, sender, recipient, sortedTokens, _sortedAmounts(1 ether, 0 ether));
+        _assertPoolBalances(pool, 3 ether, 3 ether);
 
         // Add SMP only
-        amounts[0] = 0 ether;
-        amounts[1] = 1 ether;
         smp.approve(address(vault), 1 ether);
-        helper.addLiquidity(vault, pool, sender, recipient, tokens, amounts);
-
-        (, balances,) = vault.getPoolTokens(pool.getPoolId());
-        assertEq(balances[0], 3 ether);
-        assertEq(balances[1], 4 ether);
-
-        // Add WOAS with reversed token order
-        IERC20[2] memory reversed;
-        reversed[0] = tokens[1];
-        reversed[1] = tokens[0];
-        amounts[0] = 0 ether;
-        amounts[1] = 1 ether;
-        woas.approve(address(vault), 1 ether);
-        helper.addLiquidity(vault, pool, sender, recipient, reversed, amounts);
-
-        (, balances,) = vault.getPoolTokens(pool.getPoolId());
-        assertEq(balances[0], 4 ether);
-        assertEq(balances[1], 4 ether);
+        helper.addLiquidity(pool, sender, recipient, sortedTokens, _sortedAmounts(0 ether, 1 ether));
+        _assertPoolBalances(pool, 3 ether, 4 ether);
 
         // Add native OAS
-        tokens[0] = IERC20(address(0));
-        amounts[0] = 1 ether;
-        amounts[1] = 0 ether;
-        vm.deal(sender, 1 ether);
-        helper.addLiquidity{value: 1 ether}(vault, pool, sender, recipient, tokens, amounts);
+        IERC20[2] memory tokens = sortedTokens;
+        uint256[2] memory amounts;
+        uint8 woasIdx = address(sortedTokens[0]) == address(woas) ? 0 : 1;
+        tokens[woasIdx] = IERC20(address(0)); // represents the native currency
+        amounts[woasIdx] = 1 ether;
 
-        (, balances,) = vault.getPoolTokens(pool.getPoolId());
-        assertEq(balances[0], 5 ether);
-        assertEq(balances[1], 4 ether);
+        vm.deal(sender, 1 ether);
+        helper.addLiquidity{value: 1 ether}(pool, sender, recipient, tokens, amounts);
+        _assertPoolBalances(pool, 4 ether, 4 ether);
     }
 
     /**
@@ -176,7 +175,7 @@ contract BalancerV2HelperTest is Test {
         uint256 amountIn = 1 ether;
         woas.approve(address(vault), amountIn);
 
-        uint256 smpOut1 = helper.swap(vault, pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 smpOut1 = helper.swap(pool, sender, payable(recipient), tokenIn, amountIn);
         assertGe(smpOut1, 0.99 ether);
         assertEq(smpOut1, smp.balanceOf(recipient));
 
@@ -185,7 +184,7 @@ contract BalancerV2HelperTest is Test {
         amountIn = 1 ether;
         smp.approve(address(vault), amountIn);
 
-        uint256 woasOut = helper.swap(vault, pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 woasOut = helper.swap(pool, sender, payable(recipient), tokenIn, amountIn);
         assertGe(woasOut, 0.99 ether);
         assertEq(woasOut, woas.balanceOf(recipient));
 
@@ -194,7 +193,7 @@ contract BalancerV2HelperTest is Test {
         amountIn = 1 ether;
         vm.deal(sender, amountIn);
 
-        uint256 smpOut2 = helper.swap{value: amountIn}(vault, pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 smpOut2 = helper.swap{value: amountIn}(pool, sender, payable(recipient), tokenIn, amountIn);
         assertGe(smpOut2, 0.99 ether);
         assertEq(smpOut1 + smpOut2, smp.balanceOf(recipient));
     }
@@ -211,26 +210,29 @@ contract BalancerV2HelperTest is Test {
             tokenA: _asIERC20(woas),
             tokenB: _asIERC20(smp)
         });
-        return helper.createPool(factory, cfg);
+        return helper.createPool(cfg);
+    }
+
+    /**
+     * @notice Helper function to sort token amounts according to token address order
+     * @dev Returns amounts in the same order as sortedTokens array
+     * @param _woas Amount of WOAS tokens
+     * @param _smp Amount of SMP tokens
+     * @return amounts Array with amounts sorted by token address
+     */
+    function _sortedAmounts(uint256 _woas, uint256 _smp) internal returns (uint256[2] memory amounts) {
+        (uint8 a, uint8 b) = address(woas) < address(smp) ? (0, 1) : (1, 0);
+        amounts[a] = _woas;
+        amounts[b] = _smp;
     }
 
     /**
      * @notice Helper function to add initial liquidity to a pool
      */
-    function _addInitialLiquidity(IBasePool pool, uint256 _woas, uint256 _smp)
-        internal
-        returns (IERC20[2] memory tokens, uint256[2] memory amounts)
-    {
-        tokens[0] = _asIERC20(woas);
-        tokens[1] = _asIERC20(smp);
-
-        amounts[0] = _woas;
-        amounts[1] = _smp;
-
+    function _addInitialLiquidity(IBasePool pool, uint256 _woas, uint256 _smp) internal {
         woas.approve(address(vault), _woas);
         smp.approve(address(vault), _smp);
-
-        helper.addInitialLiquidity(vault, pool, sender, recipient, tokens, amounts);
+        helper.addInitialLiquidity(pool, sender, recipient, sortedTokens, _sortedAmounts(_woas, _smp));
     }
 
     /**
@@ -245,5 +247,25 @@ contract BalancerV2HelperTest is Test {
      */
     function _asIERC20(IMockSMP smp) internal returns (IERC20) {
         return IERC20(address(smp));
+    }
+
+    /**
+     * @notice Assert that pool balances match expected amounts
+     * @dev Handles token order automatically by checking addresses
+     * @param pool The pool to check balances for
+     * @param _woas Expected WOAS balance in the pool
+     * @param _smp Expected SMP balance in the pool
+     */
+    function _assertPoolBalances(IBasePool pool, uint256 _woas, uint256 _smp) internal {
+        (IERC20[] memory tokens, uint256[] memory balances,) = vault.getPoolTokens(pool.getPoolId());
+
+        // Check balances based on token address order
+        if (address(tokens[0]) == address(woas)) {
+            assertEq(balances[0], _woas, "WOAS balance mismatch");
+            assertEq(balances[1], _smp, "SMP balance mismatch");
+        } else {
+            assertEq(balances[1], _woas, "WOAS balance mismatch");
+            assertEq(balances[0], _smp, "SMP balance mismatch");
+        }
     }
 }

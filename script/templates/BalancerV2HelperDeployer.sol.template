@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.7.0;
+
+contract BalancerV2HelperDeployer {
+    address public immutable helper;
+
+    constructor(bytes32 salt, address vault, address poolFactory) {
+        bytes memory helperCode = hex"__HELPER_CODE__";
+        bytes memory helperConstructorArgs = abi.encode(vault, poolFactory);
+        bytes memory helperDeployCode = abi.encodePacked(helperCode, helperConstructorArgs);
+
+        address _helper;
+        assembly {
+            _helper := create2(0, add(helperDeployCode, 0x20), mload(helperDeployCode), salt)
+        }
+        require(_helper != address(0), "Failed to deploy BalancerV2Helper");
+
+        helper = _helper;
+    }
+}
