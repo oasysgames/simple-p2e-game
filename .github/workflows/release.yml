@@ -1,0 +1,63 @@
+name: Release NPM Package
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  Release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check version
+        run: |
+          NPM_VERSION="$(jq -r .version package.json)"
+          GIT_VERSION="${GITHUB_REF_NAME#v}"
+          if [ x$NPM_VERSION != x$GIT_VERSION ]; then
+            echo "Version mismatch between package.json and git tag"
+            exit 1
+          fi
+
+      - name: Create package
+        run: |
+          npm pack
+          echo PACKAGE="$(ls *.tgz)" >> $GITHUB_ENV
+          echo PACKAGE_ABS="$PWD/$(ls *.tgz)" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test Hardhat integration
+        run: |
+          set -ex
+          cd ./hardhat
+          npm install
+
+          # Reinstall using the generated tarball
+          npm install --save-dev $OLDPWD/${{ env.PACKAGE }}
+          find node_modules/@oasysgames/simple-p2e-game/ -type f
+
+          # Run tests to verify integration
+          npx hardhat test
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Installation
+            ```bash
+            npm install --save-dev ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.PACKAGE }}
+            ```
+          files: ${{ env.PACKAGE }}
+          draft: false
+          prerelease: true

@@ -11,15 +11,15 @@ import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/open
 import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 // Local Test Utilities
-import {VaultDeployer, IMinimumAuthorizer} from "../src/test-utils/deployers/VaultDeployer.sol";
-import {WeightedPoolFactoryDeployer} from "../src/test-utils/deployers/WeightedPoolFactoryDeployer.sol";
-import {BalancerV2HelperDeployer} from "../src/test-utils/deployers/BalancerV2HelperDeployer.sol";
-import {IBalancerV2Helper} from "../src/test-utils/interfaces/IBalancerV2Helper.sol";
-import {IMockSMP} from "../src/test-utils/interfaces/IMockSMP.sol";
-import {IWeightedPoolFactory} from "../src/test-utils/interfaces/IWeightedPoolFactory.sol";
-import {IWOAS} from "../src/test-utils/interfaces/IWOAS.sol";
-import {MockSMP} from "../src/test-utils/MockSMP.sol";
-import {BalancerV2Helper} from "../src/test-utils/BalancerV2Helper.sol";
+import {VaultDeployer, IMinimumAuthorizer} from "../contracts/test-utils/deployers/VaultDeployer.sol";
+import {WeightedPoolFactoryDeployer} from "../contracts/test-utils/deployers/WeightedPoolFactoryDeployer.sol";
+import {BalancerV2HelperDeployer} from "../contracts/test-utils/deployers/BalancerV2HelperDeployer.sol";
+import {IBalancerV2Helper} from "../contracts/test-utils/interfaces/IBalancerV2Helper.sol";
+import {IMockSMP} from "../contracts/test-utils/interfaces/IMockSMP.sol";
+import {IWeightedPoolFactory} from "../contracts/test-utils/interfaces/IWeightedPoolFactory.sol";
+import {IWOAS} from "../contracts/test-utils/interfaces/IWOAS.sol";
+import {MockSMP} from "../contracts/test-utils/MockSMPv7.sol";
+import {BalancerV2Helper} from "../contracts/test-utils/BalancerV2Helper.sol";
 
 contract BalancerV2HelperTest is Test {
     IBalancerV2Helper public helper;

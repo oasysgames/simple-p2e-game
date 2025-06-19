@@ -1,12 +1,11 @@
 {
-  "name": "simple-p2e-game",
-  "description": "**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**",
+  "name": "@oasysgames/simple-p2e-game",
   "version": "0.0.1",
   "author": "oasysgames",
   "license": "MIT",
-  "keywords": [],
   "files": [
-    "src/**/*.sol"
+    "contracts/**/*.sol",
+    "hardhat/fixtures/*.ts"
   ],
   "scripts": {
     "build": "forge build",
@@ -15,5 +14,9 @@
     "test:watch": "forge test -vvv --watch",
     "fmt": "forge fmt",
     "script:GenerateDeployers": "forge script script/GenerateDeployers.s.sol && forge fmt src/test-utils/deployers/*.sol"
+  },
+  "dependencies": {
+    "@balancer-labs/v2-interfaces": "^0.4.0",
+    "@openzeppelin/contracts": "^5.0.0"
   }
 }

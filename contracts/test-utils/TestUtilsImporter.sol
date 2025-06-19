@@ -24,3 +24,4 @@ import {IMockSMP} from "./interfaces/IMockSMP.sol";
 import {VaultDeployer, IMinimumAuthorizer} from "./deployers/VaultDeployer.sol";
 import {WeightedPoolFactoryDeployer} from "./deployers/WeightedPoolFactoryDeployer.sol";
 import {BalancerV2HelperDeployer} from "./deployers/BalancerV2HelperDeployer.sol";
+import {MockSMP} from "./MockSMPv8.sol";

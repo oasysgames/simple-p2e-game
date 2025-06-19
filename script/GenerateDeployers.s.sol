@@ -6,9 +6,9 @@ import {Vault} from "@balancer-labs/v2-vault/contracts/Vault.sol";
 import {MockBasicAuthorizer} from "@balancer-labs/v2-vault/contracts/test/MockBasicAuthorizer.sol";
 import {WeightedPoolFactory} from "@balancer-labs/v2-pool-weighted/contracts/WeightedPoolFactory.sol";
 
-import {WOAS} from "../src/test-utils/WOAS.sol";
-import {MockProtocolFeePercentagesProvider} from "../src/test-utils/MockProtocolFeePercentagesProvider.sol";
-import {BalancerV2Helper} from "../src/test-utils/BalancerV2Helper.sol";
+import {WOAS} from "../contracts/test-utils/WOAS.sol";
+import {MockProtocolFeePercentagesProvider} from "../contracts/test-utils/MockProtocolFeePercentagesProvider.sol";
+import {BalancerV2Helper} from "../contracts/test-utils/BalancerV2Helper.sol";
 
 /**
  * @title GenerateDeployers
