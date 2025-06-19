@@ -2,17 +2,20 @@
 pragma solidity >=0.7.0 <0.9.0;
 pragma experimental ABIEncoderV2;
 
+// Foundry Test Framework
 import {Test, console} from "forge-std/Test.sol";
 
-import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
-import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
+// Balancer V2 Interfaces
 import {IBasePool} from "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
+import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
+import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
+// Local Test Utilities
+import {BalancerV2Helper} from "../src/test-utils/BalancerV2Helper.sol";
+import {IBalancerV2Helper} from "../src/test-utils/interfaces/IBalancerV2Helper.sol";
+import {IMockSMP} from "../src/test-utils/interfaces/IMockSMP.sol";
 import {IWeightedPoolFactory} from "../src/test-utils/interfaces/IWeightedPoolFactory.sol";
 import {IWOAS} from "../src/test-utils/interfaces/IWOAS.sol";
-import {IMockSMP} from "../src/test-utils/interfaces/IMockSMP.sol";
-import {IBalancerV2Helper} from "../src/test-utils/interfaces/IBalancerV2Helper.sol";
-import {BalancerV2Helper} from "../src/test-utils/BalancerV2Helper.sol";
 
 contract BalancerV2HelperTest is Test {
     BalancerV2Helper public helper;
@@ -47,14 +50,14 @@ contract BalancerV2HelperTest is Test {
         {
             vm.startPrank(sender);
 
-            // ヘルパーにリレイヤー権限を与える
+            // Grant relayer approval to helper contract
             vault.setRelayerApproval(sender, address(helper), true);
 
-            // WOASをミント
+            // Mint WOAS by depositing native OAS
             vm.deal(sender, initialBalance);
             woas.deposit{value: initialBalance}();
 
-            // SMPをミント
+            // Mint SMP tokens
             smp.mint(sender, initialBalance);
 
             vm.stopPrank();
@@ -62,7 +65,8 @@ contract BalancerV2HelperTest is Test {
     }
 
     /**
-     * @dev TODO
+     * @notice Test pool creation functionality
+     * @dev Verifies that a weighted pool can be created with correct token configuration
      */
     function test_createPool() public {
         IBasePool pool = _createPool();
@@ -76,7 +80,8 @@ contract BalancerV2HelperTest is Test {
     }
 
     /**
-     * @dev TODO
+     * @notice Test initial liquidity addition to a newly created pool
+     * @dev Verifies that initial liquidity can be added and pool balances are correct
      */
     function test_addInitialLiquidity() public {
         vm.startPrank(sender);
@@ -90,16 +95,17 @@ contract BalancerV2HelperTest is Test {
     }
 
     /**
-     * @dev TODO
+     * @notice Test liquidity addition to existing pools with various scenarios
+     * @dev Tests multiple liquidity addition patterns including single-token adds and native OAS
      */
     function test_addLiquidity() public {
         vm.startPrank(sender);
 
-        // 初期流動性提供
+        // Provide initial liquidity
         IBasePool pool = _createPool();
         (IERC20[2] memory tokens, uint256[2] memory amounts) = _addInitialLiquidity(pool, 1 ether, 2 ether);
 
-        // WOASとSMPを追加
+        // Add both WOAS and SMP
         amounts[0] = 1 ether;
         amounts[1] = 1 ether;
         woas.approve(address(vault), 1 ether);
@@ -110,7 +116,7 @@ contract BalancerV2HelperTest is Test {
         assertEq(balances[0], 2 ether);
         assertEq(balances[1], 3 ether);
 
-        // WOASのみを追加
+        // Add WOAS only
         amounts[0] = 1 ether;
         amounts[1] = 0 ether;
         woas.approve(address(vault), 1 ether);
@@ -120,7 +126,7 @@ contract BalancerV2HelperTest is Test {
         assertEq(balances[0], 3 ether);
         assertEq(balances[1], 3 ether);
 
-        // SMPのみを追加
+        // Add SMP only
         amounts[0] = 0 ether;
         amounts[1] = 1 ether;
         smp.approve(address(vault), 1 ether);
@@ -130,7 +136,7 @@ contract BalancerV2HelperTest is Test {
         assertEq(balances[0], 3 ether);
         assertEq(balances[1], 4 ether);
 
-        // tokensの順番を入れ替えてWOASを追加
+        // Add WOAS with reversed token order
         IERC20[2] memory reversed;
         reversed[0] = tokens[1];
         reversed[1] = tokens[0];
@@ -143,7 +149,7 @@ contract BalancerV2HelperTest is Test {
         assertEq(balances[0], 4 ether);
         assertEq(balances[1], 4 ether);
 
-        // ネイティブOASを追加(内部でWOASへ自動ラップされる)
+        // Add native OAS
         tokens[0] = IERC20(address(0));
         amounts[0] = 1 ether;
         amounts[1] = 0 ether;
@@ -156,7 +162,8 @@ contract BalancerV2HelperTest is Test {
     }
 
     /**
-     * @dev TODO
+     * @notice Test token swapping functionality with various token pairs
+     * @dev Tests WOAS<->SMP swaps and native OAS swapping with slippage checks
      */
     function test_swap() public {
         vm.startPrank(sender);
@@ -164,7 +171,7 @@ contract BalancerV2HelperTest is Test {
         IBasePool pool = _createPool();
         _addInitialLiquidity(pool, 100 ether, 100 ether);
 
-        // WOASからSMPへスワップ
+        // Swap WOAS to SMP
         IERC20 tokenIn = _asIERC20(woas);
         uint256 amountIn = 1 ether;
         woas.approve(address(vault), amountIn);
@@ -173,7 +180,7 @@ contract BalancerV2HelperTest is Test {
         assertGe(smpOut1, 0.99 ether);
         assertEq(smpOut1, smp.balanceOf(recipient));
 
-        // SMPからWOASへスワップ
+        // Swap SMP to WOAS
         tokenIn = _asIERC20(smp);
         amountIn = 1 ether;
         smp.approve(address(vault), amountIn);
@@ -182,7 +189,7 @@ contract BalancerV2HelperTest is Test {
         assertGe(woasOut, 0.99 ether);
         assertEq(woasOut, woas.balanceOf(recipient));
 
-        // ネイティブOASからSMPへスワップ
+        // Swap native OAS to SMP
         tokenIn = IERC20(address(0));
         amountIn = 1 ether;
         vm.deal(sender, amountIn);
@@ -192,6 +199,9 @@ contract BalancerV2HelperTest is Test {
         assertEq(smpOut1 + smpOut2, smp.balanceOf(recipient));
     }
 
+    /**
+     * @notice Helper function to create a test pool with default configuration
+     */
     function _createPool() internal returns (IBasePool) {
         IBalancerV2Helper.PoolConfig memory cfg = IBalancerV2Helper.PoolConfig({
             owner: poolOwner,
@@ -204,6 +214,9 @@ contract BalancerV2HelperTest is Test {
         return helper.createPool(factory, cfg);
     }
 
+    /**
+     * @notice Helper function to add initial liquidity to a pool
+     */
     function _addInitialLiquidity(IBasePool pool, uint256 _woas, uint256 _smp)
         internal
         returns (IERC20[2] memory tokens, uint256[2] memory amounts)
@@ -220,10 +233,16 @@ contract BalancerV2HelperTest is Test {
         helper.addInitialLiquidity(vault, pool, sender, recipient, tokens, amounts);
     }
 
+    /**
+     * @notice Convert IWOAS interface to IERC20 for Balancer operations
+     */
     function _asIERC20(IWOAS woas) internal returns (IERC20) {
         return IERC20(address(woas));
     }
 
+    /**
+     * @notice Convert IMockSMP interface to IERC20 for Balancer operations
+     */
     function _asIERC20(IMockSMP smp) internal returns (IERC20) {
         return IERC20(address(smp));
     }
