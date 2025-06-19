@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.7.0;
 
 import {IProtocolFeePercentagesProvider} from
     "../../lib/balancer-v2-monorepo/pkg/interfaces/contracts/standalone-utils/IProtocolFeePercentagesProvider.sol";
