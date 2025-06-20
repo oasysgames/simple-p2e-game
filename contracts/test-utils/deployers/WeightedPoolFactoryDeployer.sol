@@ -18,11 +18,13 @@ contract WeightedPoolFactoryDeployer {
         require(_feeProvider != address(0), "Failed to deploy ProtocolFeePercentagesProvider");
 
         bytes memory poolFactoryConstructoArgs = abi.encode(vault, _feeProvider, 90 days, 30 days);
-        bytes memory poolFactoryDeployCode = abi.encodePacked(poolFactoryCode, poolFactoryConstructoArgs);
+        bytes memory poolFactoryDeployCode =
+            abi.encodePacked(poolFactoryCode, poolFactoryConstructoArgs);
 
         address _poolFactory;
         assembly {
-            _poolFactory := create2(0, add(poolFactoryDeployCode, 0x20), mload(poolFactoryDeployCode), salt)
+            _poolFactory :=
+                create2(0, add(poolFactoryDeployCode, 0x20), mload(poolFactoryDeployCode), salt)
         }
         require(_poolFactory != address(0), "Failed to deploy WeightedPoolFactory");
 

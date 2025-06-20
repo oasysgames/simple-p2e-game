@@ -2,13 +2,14 @@
 pragma solidity >=0.8.0;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
  * @title MockSMP
  * @notice Mock version of the SMP token for testing purposes
  * @dev No access control - any caller can mint tokens. This is intentional for testing.
  */
-contract MockSMP is ERC20 {
+contract MockSMP is ERC20Burnable {
     /**
      * @notice Deploy MockSMP token with "SMP" name and symbol
      */

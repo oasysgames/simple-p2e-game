@@ -3,12 +3,12 @@ pragma solidity >=0.7.0;
 pragma experimental ABIEncoderV2;
 
 // Balancer V2 Interfaces
-import {IBasePool} from "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
 import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 import {IRateProvider} from "@balancer-labs/v2-interfaces/contracts/pool-utils/IRateProvider.sol";
 import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 // Local Interfaces
+import {IVaultPool} from "../../interfaces/IVaultPool.sol";
 import {IWeightedPoolFactory} from "./IWeightedPoolFactory.sol";
 
 /**
@@ -50,9 +50,9 @@ interface IBalancerV2Helper {
      *      Automatically deploys mock rate providers required by the factory.
      *      Enforces minimum swap fee if provided fee is too low.
      * @param cfg Pool creation configuration parameters
-     * @return pool The created pool instance implementing IBasePool
+     * @return pool The created pool instance implementing IVaultPool
      */
-    function createPool(PoolConfig memory cfg) external returns (IBasePool);
+    function createPool(PoolConfig memory cfg) external returns (IVaultPool);
 
     /**
      * @notice Add initial liquidity to a newly created pool (first join)
@@ -67,7 +67,7 @@ interface IBalancerV2Helper {
      * @param amounts Amount of each token to add (must match token order)
      */
     function addInitialLiquidity(
-        IBasePool pool,
+        IVaultPool pool,
         address sender,
         address recipient,
         IERC20[2] calldata tokens,
@@ -87,7 +87,7 @@ interface IBalancerV2Helper {
      * @param amounts Amount of each token to add (must match token order)
      */
     function addLiquidity(
-        IBasePool pool,
+        IVaultPool pool,
         address sender,
         address recipient,
         IERC20[2] calldata tokens,
@@ -108,8 +108,11 @@ interface IBalancerV2Helper {
      * @param amountIn Amount of input token to swap
      * @return amountOut Amount of output token received from the swap
      */
-    function swap(IBasePool pool, address sender, address payable recipient, IERC20 tokenIn, uint256 amountIn)
-        external
-        payable
-        returns (uint256 amountOut);
+    function swap(
+        IVaultPool pool,
+        address sender,
+        address payable recipient,
+        IERC20 tokenIn,
+        uint256 amountIn
+    ) external payable returns (uint256 amountOut);
 }

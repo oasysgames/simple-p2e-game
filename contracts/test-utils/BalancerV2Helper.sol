@@ -4,12 +4,13 @@ pragma experimental ABIEncoderV2;
 
 // Balancer V2 Interfaces
 import {IAsset} from "@balancer-labs/v2-interfaces/contracts/vault/IAsset.sol";
-import {IBasePool} from "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
-import {IBasePoolFactory} from "@balancer-labs/v2-interfaces/contracts/pool-utils/IBasePoolFactory.sol";
+import {IBasePoolFactory} from
+    "@balancer-labs/v2-interfaces/contracts/pool-utils/IBasePoolFactory.sol";
 import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 import {IRateProvider} from "@balancer-labs/v2-interfaces/contracts/pool-utils/IRateProvider.sol";
 import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
-import {WeightedPoolUserData} from "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
+import {WeightedPoolUserData} from
+    "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
 
 // Balancer V2 Core Contracts
 import {MockRateProvider} from "@balancer-labs/v2-pool-utils/contracts/test/MockRateProvider.sol";
@@ -18,7 +19,8 @@ import {MockRateProvider} from "@balancer-labs/v2-pool-utils/contracts/test/Mock
 import {IBalancerV2Helper} from "./interfaces/IBalancerV2Helper.sol";
 import {IMockSMP} from "./interfaces/IMockSMP.sol";
 import {IWeightedPoolFactory} from "./interfaces/IWeightedPoolFactory.sol";
-import {IWOAS} from "./interfaces/IWOAS.sol";
+import {IVaultPool} from "../interfaces/IVaultPool.sol";
+import {IWOAS} from "../interfaces/IWOAS.sol";
 
 /**
  * @title BalancerV2Helper
@@ -51,7 +53,7 @@ contract BalancerV2Helper is IBalancerV2Helper {
     /**
      * @inheritdoc IBalancerV2Helper
      */
-    function createPool(PoolConfig memory cfg) external override returns (IBasePool) {
+    function createPool(PoolConfig memory cfg) external override returns (IVaultPool) {
         // Ensure swap fee meets minimum protocol requirements
         if (cfg.swapFeePercentage < MIN_SWAP_FEE_PERCENTAGE) {
             cfg.swapFeePercentage = MIN_SWAP_FEE_PERCENTAGE;
@@ -75,18 +77,24 @@ contract BalancerV2Helper is IBalancerV2Helper {
 
         // Create the weighted pool with 50/50 token distribution
         address pool = poolFactory.create(
-            cfg.name, cfg.symbol, tokens, equalWeights, rateProviders, cfg.swapFeePercentage, cfg.owner
+            cfg.name,
+            cfg.symbol,
+            tokens,
+            equalWeights,
+            rateProviders,
+            cfg.swapFeePercentage,
+            cfg.owner
         );
         emit PoolCreated(cfg.name, cfg.symbol, pool);
 
-        return IBasePool(pool);
+        return IVaultPool(pool);
     }
 
     /**
      * @inheritdoc IBalancerV2Helper
      */
     function addInitialLiquidity(
-        IBasePool pool,
+        IVaultPool pool,
         address sender,
         address recipient,
         IERC20[2] calldata tokens,
@@ -99,26 +107,32 @@ contract BalancerV2Helper is IBalancerV2Helper {
      * @inheritdoc IBalancerV2Helper
      */
     function addLiquidity(
-        IBasePool pool,
+        IVaultPool pool,
         address sender,
         address recipient,
         IERC20[2] calldata tokens,
         uint256[2] calldata amounts
     ) external payable override {
         _addLiquidity(
-            pool, sender, recipient, tokens, amounts, WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT
+            pool,
+            sender,
+            recipient,
+            tokens,
+            amounts,
+            WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT
         );
     }
 
     /**
      * @inheritdoc IBalancerV2Helper
      */
-    function swap(IBasePool pool, address sender, address payable recipient, IERC20 tokenIn, uint256 amountIn)
-        external
-        payable
-        override
-        returns (uint256 amountOut)
-    {
+    function swap(
+        IVaultPool pool,
+        address sender,
+        address payable recipient,
+        IERC20 tokenIn,
+        uint256 amountIn
+    ) external payable override returns (uint256 amountOut) {
         // Get sorted token addresses from Vault
         bytes32 poolId = pool.getPoolId();
         (IERC20[] memory sortedTokens,,) = vault.getPoolTokens(poolId);
@@ -166,7 +180,7 @@ contract BalancerV2Helper is IBalancerV2Helper {
      * @notice Internal function to add liquidity to a pool
      */
     function _addLiquidity(
-        IBasePool pool,
+        IVaultPool pool,
         address sender,
         address recipient,
         IERC20[2] calldata _tokens,

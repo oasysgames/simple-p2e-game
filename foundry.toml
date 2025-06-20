@@ -10,4 +10,11 @@ fs_permissions = [
     { access = "read-write", path = "./contracts/test-utils/deployers/" }
 ]
 
+[fmt]
+line_length = 100
+tab_width = 4
+multiline_func_header = "attributes_first"
+quote_style = "double"
+number_underscore = "thousands"
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

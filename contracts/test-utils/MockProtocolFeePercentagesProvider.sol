@@ -38,9 +38,12 @@ contract MockProtocolFeePercentagesProvider is IProtocolFeePercentagesProvider {
      * @param maximumValue Maximum allowed percentage (1e18 = 100%)
      * @param initialValue Initial percentage value (1e18 = 100%)
      */
-    function _registerFeeType(uint256 feeType, string memory name, uint256 maximumValue, uint256 initialValue)
-        internal
-    {
+    function _registerFeeType(
+        uint256 feeType,
+        string memory name,
+        uint256 maximumValue,
+        uint256 initialValue
+    ) internal {
         _validFeeTypes[feeType] = true;
         _feePercentages[feeType] = initialValue;
         _maximumPercentages[feeType] = maximumValue;
@@ -50,10 +53,12 @@ contract MockProtocolFeePercentagesProvider is IProtocolFeePercentagesProvider {
     /**
      * @inheritdoc IProtocolFeePercentagesProvider
      */
-    function registerFeeType(uint256 feeType, string memory name, uint256 maximumValue, uint256 initialValue)
-        external
-        override
-    {
+    function registerFeeType(
+        uint256 feeType,
+        string memory name,
+        uint256 maximumValue,
+        uint256 initialValue
+    ) external override {
         _registerFeeType(feeType, name, maximumValue, initialValue);
     }
 
@@ -67,7 +72,12 @@ contract MockProtocolFeePercentagesProvider is IProtocolFeePercentagesProvider {
     /**
      * @inheritdoc IProtocolFeePercentagesProvider
      */
-    function isValidFeeTypePercentage(uint256 feeType, uint256 value) external view override returns (bool) {
+    function isValidFeeTypePercentage(uint256 feeType, uint256 value)
+        external
+        view
+        override
+        returns (bool)
+    {
         return _validFeeTypes[feeType] && value <= _maximumPercentages[feeType];
     }
 
@@ -90,7 +100,12 @@ contract MockProtocolFeePercentagesProvider is IProtocolFeePercentagesProvider {
     /**
      * @inheritdoc IProtocolFeePercentagesProvider
      */
-    function getFeeTypeMaximumPercentage(uint256 feeType) external view override returns (uint256) {
+    function getFeeTypeMaximumPercentage(uint256 feeType)
+        external
+        view
+        override
+        returns (uint256)
+    {
         return _maximumPercentages[feeType];
     }
 

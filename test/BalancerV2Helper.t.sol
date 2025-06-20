@@ -1,23 +1,27 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.7.0;
 pragma experimental ABIEncoderV2;
 
 // Foundry Test Framework
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 // Balancer V2 Interfaces
-import {IBasePool} from "@balancer-labs/v2-interfaces/contracts/vault/IBasePool.sol";
 import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 // Local Test Utilities
-import {VaultDeployer, IMinimumAuthorizer} from "../contracts/test-utils/deployers/VaultDeployer.sol";
-import {WeightedPoolFactoryDeployer} from "../contracts/test-utils/deployers/WeightedPoolFactoryDeployer.sol";
-import {BalancerV2HelperDeployer} from "../contracts/test-utils/deployers/BalancerV2HelperDeployer.sol";
+import {
+    VaultDeployer, IMinimumAuthorizer
+} from "../contracts/test-utils/deployers/VaultDeployer.sol";
+import {WeightedPoolFactoryDeployer} from
+    "../contracts/test-utils/deployers/WeightedPoolFactoryDeployer.sol";
+import {BalancerV2HelperDeployer} from
+    "../contracts/test-utils/deployers/BalancerV2HelperDeployer.sol";
 import {IBalancerV2Helper} from "../contracts/test-utils/interfaces/IBalancerV2Helper.sol";
+import {IVaultPool} from "../contracts/interfaces/IVaultPool.sol";
 import {IMockSMP} from "../contracts/test-utils/interfaces/IMockSMP.sol";
 import {IWeightedPoolFactory} from "../contracts/test-utils/interfaces/IWeightedPoolFactory.sol";
-import {IWOAS} from "../contracts/test-utils/interfaces/IWOAS.sol";
+import {IWOAS} from "../contracts/interfaces/IWOAS.sol";
 import {MockSMP} from "../contracts/test-utils/MockSMPv7.sol";
 import {BalancerV2Helper} from "../contracts/test-utils/BalancerV2Helper.sol";
 
@@ -54,8 +58,9 @@ contract BalancerV2HelperTest is Test {
             VaultDeployer vaultDeployer = new VaultDeployer(salt);
             WeightedPoolFactoryDeployer poolFactoryDeployer =
                 new WeightedPoolFactoryDeployer(salt, vaultDeployer.vault());
-            BalancerV2HelperDeployer bv2deployer =
-                new BalancerV2HelperDeployer(salt, vaultDeployer.vault(), poolFactoryDeployer.poolFactory());
+            BalancerV2HelperDeployer bv2deployer = new BalancerV2HelperDeployer(
+                salt, vaultDeployer.vault(), poolFactoryDeployer.poolFactory()
+            );
 
             // Store contract references
             vault = IVault(vaultDeployer.vault());
@@ -99,7 +104,7 @@ contract BalancerV2HelperTest is Test {
      * @dev Verifies that a weighted pool can be created with correct token configuration
      */
     function test_createPool() public {
-        IBasePool pool = _createPool();
+        IVaultPool pool = _createPool();
 
         bytes32 poolId = pool.getPoolId();
         assertNotEq(poolId, 0x0);
@@ -116,7 +121,7 @@ contract BalancerV2HelperTest is Test {
     function test_addInitialLiquidity() public {
         vm.startPrank(sender);
 
-        IBasePool pool = _createPool();
+        IVaultPool pool = _createPool();
         _addInitialLiquidity(pool, 1 ether, 2 ether);
         _assertPoolBalances(pool, 1 ether, 2 ether);
     }
@@ -129,7 +134,7 @@ contract BalancerV2HelperTest is Test {
         vm.startPrank(sender);
 
         // Provide initial liquidity
-        IBasePool pool = _createPool();
+        IVaultPool pool = _createPool();
         _addInitialLiquidity(pool, 1 ether, 2 ether);
 
         // Add both WOAS and SMP
@@ -167,7 +172,7 @@ contract BalancerV2HelperTest is Test {
     function test_swap() public {
         vm.startPrank(sender);
 
-        IBasePool pool = _createPool();
+        IVaultPool pool = _createPool();
         _addInitialLiquidity(pool, 100 ether, 100 ether);
 
         // Swap WOAS to SMP
@@ -193,7 +198,8 @@ contract BalancerV2HelperTest is Test {
         amountIn = 1 ether;
         vm.deal(sender, amountIn);
 
-        uint256 smpOut2 = helper.swap{value: amountIn}(pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 smpOut2 =
+            helper.swap{value: amountIn}(pool, sender, payable(recipient), tokenIn, amountIn);
         assertGe(smpOut2, 0.99 ether);
         assertEq(smpOut1 + smpOut2, smp.balanceOf(recipient));
     }
@@ -201,7 +207,7 @@ contract BalancerV2HelperTest is Test {
     /**
      * @notice Helper function to create a test pool with default configuration
      */
-    function _createPool() internal returns (IBasePool) {
+    function _createPool() internal returns (IVaultPool) {
         IBalancerV2Helper.PoolConfig memory cfg = IBalancerV2Helper.PoolConfig({
             owner: poolOwner,
             name: "50WOAS-50SMP",
@@ -220,7 +226,10 @@ contract BalancerV2HelperTest is Test {
      * @param _smp Amount of SMP tokens
      * @return amounts Array with amounts sorted by token address
      */
-    function _sortedAmounts(uint256 _woas, uint256 _smp) internal returns (uint256[2] memory amounts) {
+    function _sortedAmounts(uint256 _woas, uint256 _smp)
+        internal
+        returns (uint256[2] memory amounts)
+    {
         (uint8 a, uint8 b) = address(woas) < address(smp) ? (0, 1) : (1, 0);
         amounts[a] = _woas;
         amounts[b] = _smp;
@@ -229,10 +238,12 @@ contract BalancerV2HelperTest is Test {
     /**
      * @notice Helper function to add initial liquidity to a pool
      */
-    function _addInitialLiquidity(IBasePool pool, uint256 _woas, uint256 _smp) internal {
+    function _addInitialLiquidity(IVaultPool pool, uint256 _woas, uint256 _smp) internal {
         woas.approve(address(vault), _woas);
         smp.approve(address(vault), _smp);
-        helper.addInitialLiquidity(pool, sender, recipient, sortedTokens, _sortedAmounts(_woas, _smp));
+        helper.addInitialLiquidity(
+            pool, sender, recipient, sortedTokens, _sortedAmounts(_woas, _smp)
+        );
     }
 
     /**
@@ -256,7 +267,7 @@ contract BalancerV2HelperTest is Test {
      * @param _woas Expected WOAS balance in the pool
      * @param _smp Expected SMP balance in the pool
      */
-    function _assertPoolBalances(IBasePool pool, uint256 _woas, uint256 _smp) internal {
+    function _assertPoolBalances(IVaultPool pool, uint256 _woas, uint256 _smp) internal {
         (IERC20[] memory tokens, uint256[] memory balances,) = vault.getPoolTokens(pool.getPoolId());
 
         // Check balances based on token address order
