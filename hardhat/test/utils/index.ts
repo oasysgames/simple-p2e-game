@@ -14,6 +14,7 @@
  */
 
 import hre from "hardhat";
+import { ContractTypesMap } from "hardhat/types/artifacts";
 import {
   keccak256,
   stringToBytes,
@@ -326,7 +327,7 @@ export const deployMockNFTs = async (
   simpleP2E: `0x${string}`,
   count: number
 ) => {
-  const nfts = [];
+  const nfts: ContractTypesMap["MockSimpleP2EERC721"][] = [];
   for (let i = 0; i < count; i++) {
     const nft = await hre.viem.deployContract("MockSimpleP2EERC721", [
       `NFT${i + 1}`,
