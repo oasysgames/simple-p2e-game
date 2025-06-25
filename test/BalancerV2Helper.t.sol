@@ -31,6 +31,7 @@ contract BalancerV2HelperTest is Test {
     IWeightedPoolFactory factory;
     IWOAS woas;
     IMockSMP smp;
+    IERC20 nativeOAS; // address(0) = native OAS
     IERC20[2] sortedTokens;
 
     address public deployer; // Deploys all contracts
@@ -157,7 +158,7 @@ contract BalancerV2HelperTest is Test {
         IERC20[2] memory tokens = sortedTokens;
         uint256[2] memory amounts;
         uint8 woasIdx = address(sortedTokens[0]) == address(woas) ? 0 : 1;
-        tokens[woasIdx] = IERC20(address(0)); // represents the native currency
+        tokens[woasIdx] = nativeOAS;
         amounts[woasIdx] = 1 ether;
 
         vm.deal(sender, 1 ether);
@@ -176,32 +177,35 @@ contract BalancerV2HelperTest is Test {
         _addInitialLiquidity(pool, 100 ether, 100 ether);
 
         // Swap WOAS to SMP
-        IERC20 tokenIn = _asIERC20(woas);
         uint256 amountIn = 1 ether;
         woas.approve(address(vault), amountIn);
-
-        uint256 smpOut1 = helper.swap(pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 smpOut1 =
+            helper.swap(pool, sender, payable(recipient), _asIERC20(woas), _asIERC20(smp), amountIn);
         assertGe(smpOut1, 0.99 ether);
         assertEq(smpOut1, smp.balanceOf(recipient));
 
         // Swap SMP to WOAS
-        tokenIn = _asIERC20(smp);
-        amountIn = 1 ether;
         smp.approve(address(vault), amountIn);
-
-        uint256 woasOut = helper.swap(pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 woasOut =
+            helper.swap(pool, sender, payable(recipient), _asIERC20(smp), _asIERC20(woas), amountIn);
         assertGe(woasOut, 0.99 ether);
         assertEq(woasOut, woas.balanceOf(recipient));
 
         // Swap native OAS to SMP
-        tokenIn = IERC20(address(0));
-        amountIn = 1 ether;
         vm.deal(sender, amountIn);
 
-        uint256 smpOut2 =
-            helper.swap{value: amountIn}(pool, sender, payable(recipient), tokenIn, amountIn);
+        uint256 smpOut2 = helper.swap{value: amountIn}(
+            pool, sender, payable(recipient), nativeOAS, _asIERC20(smp), amountIn
+        );
         assertGe(smpOut2, 0.99 ether);
         assertEq(smpOut1 + smpOut2, smp.balanceOf(recipient));
+
+        // Swap SMP to native OAS
+        smp.approve(address(vault), amountIn);
+        uint256 oasOut =
+            helper.swap(pool, sender, payable(recipient), _asIERC20(smp), nativeOAS, amountIn);
+        assertGe(oasOut, 0.99 ether);
+        assertEq(oasOut, recipient.balance);
     }
 
     /**

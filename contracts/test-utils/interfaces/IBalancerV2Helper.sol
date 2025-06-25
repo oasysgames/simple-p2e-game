@@ -105,6 +105,7 @@ interface IBalancerV2Helper {
      * @param sender Token sender address (must have sufficient balance)
      * @param recipient Address to receive the output tokens (can be payable for native OAS)
      * @param tokenIn Input token address (use address(0) for native OAS)
+     * @param tokenOut Output token address (use address(0) for native OAS)
      * @param amountIn Amount of input token to swap
      * @return amountOut Amount of output token received from the swap
      */
@@ -113,6 +114,7 @@ interface IBalancerV2Helper {
         address sender,
         address payable recipient,
         IERC20 tokenIn,
+        IERC20 tokenOut,
         uint256 amountIn
     ) external payable returns (uint256 amountOut);
 }

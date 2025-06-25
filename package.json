@@ -13,7 +13,7 @@
     "test": "forge test -vvv",
     "test:watch": "forge test -vvv --watch",
     "fmt": "forge fmt",
-    "script:GenerateDeployers": "forge script script/GenerateDeployers.s.sol && forge fmt src/test-utils/deployers/*.sol"
+    "script:GenerateDeployers": "forge script script/GenerateDeployers.s.sol && forge fmt contracts/test-utils/deployers/*.sol"
   },
   "dependencies": {
     "@balancer-labs/v2-interfaces": "^0.4.0",

@@ -551,10 +551,6 @@ contract SimpleP2ETest is Test {
         vm.expectEmit(address(vault));
         emit Swap(pool.getPoolId(), smp, woas, triNFT_SMP_Revenue, expectedOASout);
 
-        // Expect SMP transfer for revenue swap to vault
-        vm.expectEmit(address(smp));
-        emit Transfer(p2eAddr, address(vault), triNFT_SMP_Revenue);
-
         // Expect WOAS burn to native OAS (vault burns WOAS)
         vm.expectEmit(address(woas));
         emit Transfer(address(vault), address(0), expectedOASout);
@@ -562,6 +558,10 @@ contract SimpleP2ETest is Test {
         // Expect WOAS withdrawal to native OAS (sent to revenue recipient)
         vm.expectEmit(address(woas));
         emit Withdrawal(address(vault), expectedOASout);
+
+        // Expect SMP transfer for revenue swap to vault
+        vm.expectEmit(address(smp));
+        emit Transfer(p2eAddr, address(vault), triNFT_SMP_Revenue);
     }
 
     function _expect_purchased_event(

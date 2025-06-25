@@ -131,28 +131,14 @@ contract BalancerV2Helper is IBalancerV2Helper {
         address sender,
         address payable recipient,
         IERC20 tokenIn,
+        IERC20 tokenOut,
         uint256 amountIn
     ) external payable override returns (uint256 amountOut) {
-        // Get sorted token addresses from Vault
-        bytes32 poolId = pool.getPoolId();
-        (IERC20[] memory sortedTokens,,) = vault.getPoolTokens(poolId);
-
-        // Determine the output token index for the swap
-        uint8 tokenOutIndex;
-        bool isOAS = address(tokenIn) == address(0);
-        if (isOAS) {
-            // For native OAS swap, find the non-WOAS token as output
-            tokenOutIndex = address(sortedTokens[0]) == address(vault.WETH()) ? 1 : 0;
-        } else {
-            // For regular token swap, find the opposite token
-            tokenOutIndex = tokenIn == sortedTokens[0] ? 1 : 0;
-        }
-
         IVault.SingleSwap memory singleSwap = IVault.SingleSwap({
-            poolId: poolId,
+            poolId: pool.getPoolId(),
             kind: IVault.SwapKind.GIVEN_IN,
             assetIn: IAsset(address(tokenIn)),
-            assetOut: IAsset(address(sortedTokens[tokenOutIndex])),
+            assetOut: IAsset(address(tokenOut)),
             amount: amountIn,
             userData: ""
         });
@@ -167,7 +153,8 @@ contract BalancerV2Helper is IBalancerV2Helper {
         // Deadline for this swap transaction (60 seconds from now)
         uint256 deadline = block.timestamp + 60;
 
-        if (isOAS) {
+        bool isNativeOAS = address(tokenIn) == address(0);
+        if (isNativeOAS) {
             // Native OAS swap - forward msg.value to Vault for WOAS wrapping
             amountOut = vault.swap{value: msg.value}(singleSwap, funds, limit, deadline);
         } else {

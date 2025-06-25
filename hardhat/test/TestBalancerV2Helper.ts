@@ -130,6 +130,7 @@ describe("TestBalancerV2Helper", () => {
       sender,
       recipient,
       woas.address,
+      smp.address,
       parseEther("1"), // Swap 1 WOAS
     ]);
 

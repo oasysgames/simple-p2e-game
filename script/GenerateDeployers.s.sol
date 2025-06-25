@@ -63,7 +63,7 @@ contract GenerateDeployers is Script {
 
     function _writeFile(string memory name, string memory deployCode) internal {
         vm.writeFile(
-            vm.replace("src/test-utils/deployers/__REPL__.sol", "__REPL__", name), deployCode
+            vm.replace("contracts/test-utils/deployers/__REPL__.sol", "__REPL__", name), deployCode
         );
     }
 
