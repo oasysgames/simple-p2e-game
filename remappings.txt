@@ -1,5 +1,6 @@
 @forge-std/=lib/forge-std/src/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @balancer-labs/v2-interfaces/=lib/balancer-v2-monorepo/pkg/interfaces/
 @balancer-labs/v2-vault/=lib/balancer-v2-monorepo/pkg/vault/
 @balancer-labs/v2-solidity-utils/=lib/balancer-v2-monorepo/pkg/solidity-utils/

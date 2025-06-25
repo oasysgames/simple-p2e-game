@@ -63,27 +63,29 @@ npx hardhat test test/TestSimpleP2E.ts
 
 基本的な使い方をテストコードから抜粋。
 ```typescript
-// Viemのフィクスチャローダー
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
-
-// テストコードからBalancerV2を利用可能にするフィクスチャ
-import { testUtilsFixture } from "@oasysgames/simple-p2e-game/hardhat/fixtures";
+import { deploySimpleP2E, deployMockNFTs } from "@oasysgames/simple-p2e-game/hardhat/test/utils";
 
 describe("TestMyContract", () => {
   it("TestCase", async() => {
-    const { vault, helper, woas, smp } = await loadFixture(testUtilsFixture);
+    // Deploy SimpleP2E ecosystem with Balancer V2 pool and initial liquidity
+    const { nativeOAS, woas, poas, smp, p2e } = await deploySimpleP2E({
+      initialLiquidity: {
+        woas: parseEther("1000"), // Initial WOAS liquidity
+        smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)
+      },
+      p2e: {
+        lpRecipient: lpRecipient, // LP token recipient
+        revenueRecipient: revenueRecipient, // Revenue recipient
+      },
+    });
 
-    // 流動性プールを作成
-    await helper.write.createPool(...)
+    // Deploy mock NFT contracts for P2E game testing
+    const nfts = await deployMockNFTs(p2e.address, 3);
+    const nftAddrs = nfts.map((nft) => nft.address);
 
-    // 初期流動性を提供
-    await helper.write.addInitialLiquidity(...)
-
-    // 追加流動性を提供
-    await helper.write.addLiquidity(...)
-
-    // トークンスワップ
-    await helper.write.swap(...)
+    // Query price and execute purchase with native OAS payment
+    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, nativeOAS])).result;
+    await p2e.write.purchase([nftAddrs, nativeOAS, totalPrice], { value: totalPrice });
   })
 })
 ```

@@ -1,117 +1,114 @@
 import hre from "hardhat";
-import { parseEther, Address, fromHex, checksumAddress } from "viem";
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
+import { ContractTypesMap } from "hardhat/types/artifacts";
+import { parseEther, checksumAddress, type Address } from "viem";
 import { expect } from "chai";
 
-import { testUtilsFixture } from "@oasysgames/simple-p2e-game/hardhat/fixtures";
+import {
+  deploySimpleP2E,
+  deployMockNFTs,
+} from "@oasysgames/simple-p2e-game/hardhat/test/utils";
 
 describe("TestSimpleP2E", () => {
-  it("BalancerV2Helper: Test pool creation, initial liquidity, additional liquidity, and token swapping", async () => {
-    // Load the test fixture with deployed contracts
-    const { vault, helper, woas, smp } = await loadFixture(testUtilsFixture);
+  let buyer: Address;
+  let lpRecipient: Address;
+  let revenueRecipient: Address;
+  let nativeOAS: Address;
 
-    // Set up test accounts (using owner for all roles in this test)
-    const [owner] = await hre.viem.getWalletClients();
-    const poolOwner = owner.account.address;
-    const sender = owner.account.address;
-    const recipient = owner.account.address;
+  let woas: ContractTypesMap["IWOAS"];
+  let poas: ContractTypesMap["MockPOAS"];
+  let smp: ContractTypesMap["MockSMP"];
+  let p2e: ContractTypesMap["SimpleP2E"];
 
-    // Prepare test tokens for liquidity operations
-    await woas.write.deposit({ value: parseEther("1000") });
-    await smp.write.mint([sender, parseEther("1000")]);
+  let nfts: ContractTypesMap["MockSimpleP2EERC721"][];
+  let nftAddrs: Address[];
 
-    // Authorize helper contract as a relayer for the sender
-    // This allows the helper to perform operations on behalf of the sender
-    await vault.write.setRelayerApproval([sender, helper.address, true]);
+  // Helper function to verify NFT ownership after purchase
+  const expectNFTsOwner = async (tokenId: number) => {
+    const owners = await Promise.all(
+      nfts.map((nft) => nft.read.ownerOf([BigInt(tokenId)]))
+    );
+    expect(owners).to.eql(owners.map((_) => buyer));
+  };
 
-    // Create a 50/50 weighted pool with WOAS and SMP tokens
-    await helper.write.createPool([
-      {
-        owner: poolOwner,
-        name: "50WOAS-50SMP",
-        symbol: "50WOAS-50SMP",
-        swapFeePercentage: 0n, // Will use default minimum 0.0001%
-        tokenA: woas.address,
-        tokenB: smp.address,
+  before(async () => {
+    // Set up test accounts for different roles
+    const [buyerWallet, lpRecipientWallet, revenueRecipientWallet] =
+      await hre.viem.getWalletClients();
+    buyer = checksumAddress(buyerWallet.account.address);
+    lpRecipient = checksumAddress(lpRecipientWallet.account.address);
+    revenueRecipient = checksumAddress(revenueRecipientWallet.account.address);
+
+    // Deploy SimpleP2E ecosystem with Balancer V2 pool and initial liquidity
+    ({ nativeOAS, woas, poas, smp, p2e } = await deploySimpleP2E({
+      initialLiquidity: {
+        woas: parseEther("1000"), // Initial WOAS liquidity
+        smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)
       },
-    ]);
+      p2e: {
+        lpRecipient: lpRecipient, // LP token recipient
+        revenueRecipient: revenueRecipient, // Revenue recipient
+      },
+    }));
 
-    // Get the created pool address from the emitted event
-    const { pool: poolAddr } = (await helper.getEvents.PoolCreated())[0].args;
-    const pool = await hre.viem.getContractAt("IBasePool", poolAddr!);
+    // Deploy mock NFT contracts for P2E game testing
+    nfts = await deployMockNFTs(p2e.address, 3);
+    nftAddrs = nfts.map((nft) => nft.address);
 
-    // Token addresses must be sorted in ascending order for Balancer V2 compatibility
-    const woasIdx =
-      fromHex(woas.address, "bigint") < fromHex(smp.address, "bigint") ? 0 : 1;
-    const smpIdx = woasIdx ^ 1; // Bitwise XOR to get the opposite index
+    // Mint tokens to the buyer for testing different payment methods
+    // WOAS: Wrap native OAS to get WOAS tokens
+    await woas.write.deposit({ account: buyer, value: parseEther("1000") });
 
-    // Create sorted token array
-    const tokens = Array(2) as [Address, Address];
-    tokens[woasIdx] = checksumAddress(woas.address);
-    tokens[smpIdx] = checksumAddress(smp.address);
+    // POAS: Mint POAS tokens (requires native OAS collateral)
+    await poas.write.mint([buyer, parseEther("1000")], {
+      account: buyer,
+      value: parseEther("1000"),
+    });
 
-    // Add initial liquidity to the pool (first join)
-    const amounts = Array(2) as [bigint, bigint];
-    amounts[woasIdx] = parseEther("100"); // 100 WOAS
-    amounts[smpIdx] = parseEther("200"); // 200 SMP
+    // SMP: Mint SMP tokens for direct payment testing
+    await smp.write.mint([buyer, parseEther("1000")], { account: buyer });
+  });
 
-    // Approve vault to spend tokens
-    await woas.write.approve([vault.address, parseEther("100")]);
-    await smp.write.approve([vault.address, parseEther("200")]);
+  it("should purchase NFTs using native OAS", async () => {
+    // Query price and execute purchase with native OAS payment
+    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, nativeOAS]))
+      .result;
+    await p2e.write.purchase([nftAddrs, nativeOAS, totalPrice], {
+      account: buyer,
+      value: totalPrice,
+    });
+    await expectNFTsOwner(0);
+  });
 
-    // Perform initial liquidity addition
-    await helper.write.addInitialLiquidity([
-      pool.address,
-      sender,
-      recipient,
-      tokens,
-      amounts,
-    ]);
+  it("should purchase NFTs using WOAS", async () => {
+    // Query price, approve WOAS spending, and execute purchase
+    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, woas.address]))
+      .result;
+    await woas.write.approve([p2e.address, totalPrice], { account: buyer });
+    await p2e.write.purchase([nftAddrs, woas.address, totalPrice], {
+      account: buyer,
+    });
+    await expectNFTsOwner(1);
+  });
 
-    // Verify the pool balance was updated correctly
-    let pbcev = (await vault.getEvents.PoolBalanceChanged())[0];
-    expect(pbcev.args.tokens).to.deep.equal(tokens);
-    expect(pbcev.args.deltas).to.deep.equal(amounts);
+  it("should purchase NFTs using POAS", async () => {
+    // Query price, approve POAS spending, and execute purchase
+    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, poas.address]))
+      .result;
+    await poas.write.approve([p2e.address, totalPrice], { account: buyer });
+    await p2e.write.purchase([nftAddrs, poas.address, totalPrice], {
+      account: buyer,
+    });
+    await expectNFTsOwner(2);
+  });
 
-    // Add additional liquidity to the existing pool (subsequent join)
-    amounts[woasIdx] = parseEther("2"); // 2 more WOAS
-    amounts[smpIdx] = parseEther("1"); // 1 more SMP
-
-    // Approve vault to spend additional tokens
-    await woas.write.approve([vault.address, parseEther("2")]);
-    await smp.write.approve([vault.address, parseEther("1")]);
-
-    // Add liquidity to existing pool
-    await helper.write.addLiquidity([
-      pool.address,
-      sender,
-      recipient,
-      tokens,
-      amounts,
-    ]);
-
-    // Verify the additional liquidity was added correctly
-    pbcev = (await vault.getEvents.PoolBalanceChanged())[0];
-    expect(pbcev.args.tokens).to.deep.equal(tokens);
-    expect(pbcev.args.deltas).to.deep.equal(amounts);
-
-    // Perform token swap: WOAS → SMP
-    await woas.write.approve([vault.address, parseEther("1")]);
-
-    // Execute swap through helper contract
-    await helper.write.swap([
-      pool.address,
-      sender,
-      recipient,
-      woas.address,
-      parseEther("1"), // Swap 1 WOAS
-    ]);
-
-    // Verify swap was executed correctly
-    const swapev = (await vault.getEvents.Swap())[0];
-    expect(swapev.args.amountIn).to.equal(parseEther("1"));
-
-    // Expect to receive at least 1.9 SMP (accounting for slippage and fees)
-    expect(Number(swapev.args.amountOut)).to.gte(Number(parseEther("1.9")));
+  it("should purchase NFTs using SMP", async () => {
+    // Query price, approve SMP spending, and execute purchase
+    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, smp.address]))
+      .result;
+    await smp.write.approve([p2e.address, totalPrice], { account: buyer });
+    await p2e.write.purchase([nftAddrs, smp.address, totalPrice], {
+      account: buyer,
+    });
+    await expectNFTsOwner(3);
   });
 });
