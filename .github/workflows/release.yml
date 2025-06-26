@@ -6,12 +6,30 @@ on:
       - v*
 
 jobs:
-  Test:
+  Release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Check version
+        run: |
+          GIT_VERSION="${GITHUB_REF_NAME#v}"
+          CONTRACTS_PKG_VERSION="$(jq -r .version package.json)"
+          HARDHAT_PKG_VERSION="$(jq -r .version hardhat/package.json)"
+
+          if [ x$CONTRACTS_PKG_VERSION != x$GIT_VERSION ]; then
+            echo "Version mismatch between package.json and git tag"
+            exit 1
+          fi
+          if [ x$HARDHAT_PKG_VERSION != x$GIT_VERSION ]; then
+            echo "Version mismatch between hardhat/package.json and git tag"
+            exit 1
+          fi
 
       - uses: foundry-rs/foundry-toolchain@v1
 
@@ -23,48 +41,40 @@ jobs:
 
       - run: forge test -vvv
 
-  Release:
-    runs-on: ubuntu-latest
-    needs: [Test]
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Check version
+      - name: Build contracts package
         run: |
-          NPM_VERSION="$(jq -r .version package.json)"
-          GIT_VERSION="${GITHUB_REF_NAME#v}"
-          if [ x$NPM_VERSION != x$GIT_VERSION ]; then
-            echo "Version mismatch between package.json and git tag"
-            exit 1
-          fi
-
-      - name: Create package
-        run: |
-          npm pack
-          echo PACKAGE="$(ls *.tgz)" >> $GITHUB_ENV
-          echo PACKAGE_ABS="$PWD/$(ls *.tgz)" >> $GITHUB_ENV
+          filename="$(npm pack)"
+          echo CONTRACTS_PACKAGE="$filename" >> $GITHUB_ENV
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Test Hardhat integration
+      - name: Build hardhat package
         run: |
           set -ex
+
+          # Build and package the hardhat plugin
           cd ./hardhat
           npm install
+          npm install $GITHUB_WORKSPACE/${{ env.CONTRACTS_PACKAGE }}
+          npm run release-build
+          filename="$(npm pack --pack-destination ../)"
+          echo HARDHAT_PACKAGE="$filename" >> $GITHUB_ENV
 
-          # Reinstall using the generated tarball
-          npm install --save-dev $OLDPWD/${{ env.PACKAGE }}
-          find node_modules/@oasysgames/simple-p2e-game/ -type f
+      - name: Test hardhat integration
+        run: |
+          set -ex
 
-          # Run tests to verify integration
+          cd $(mktemp -d)
+          npm init -y
+          npm install hardhat
+          cp -rp $GITHUB_WORKSPACE/hardhat/{hardhat.config.ts,tsconfig.json,contracts,test} ./
+
+          # Test integration by installing the built packages
+          npm install $GITHUB_WORKSPACE/{${{ env.CONTRACTS_PACKAGE }},${{ env.HARDHAT_PACKAGE }}}
+          find node_modules/@oasysgames -type f
           npx hardhat test
 
       - name: Create Release
@@ -73,14 +83,21 @@ jobs:
         with:
           name: Release ${{ github.ref_name }}
           body: |
-            ## Installation
+            ## Direct installation from GitHub release
             ```bash
-            # Direct installation from GitHub release
-            npm install --save-dev ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.PACKAGE }}
-
-            # Download from this page and install locally
-            npm install --save-dev ${{ env.PACKAGE }}
+            npm install --save-dev \
+              ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.CONTRACTS_PACKAGE }} \
+              ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ env.HARDHAT_PACKAGE }}
             ```
-          files: ${{ env.PACKAGE }}
+
+            ## Download from this page and install locally
+            ```bash
+            npm install --save-dev \
+              ${{ env.CONTRACTS_PACKAGE }} \
+              ${{ env.HARDHAT_PACKAGE }}
+            ```
+          files: |
+            ${{ env.CONTRACTS_PACKAGE }}
+            ${{ env.HARDHAT_PACKAGE }}
           draft: false
           prerelease: true

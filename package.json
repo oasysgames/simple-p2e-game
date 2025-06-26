@@ -4,8 +4,7 @@
   "author": "oasysgames",
   "license": "MIT",
   "files": [
-    "contracts/**/*.sol",
-    "hardhat/test/utils/*.ts"
+    "contracts"
   ],
   "scripts": {
     "build": "forge build",

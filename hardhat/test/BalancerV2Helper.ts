@@ -1,21 +1,20 @@
+import { expect } from "chai";
 import hre from "hardhat";
 import { ContractTypesMap } from "hardhat/types/artifacts";
-import { parseEther, Address, fromHex, checksumAddress } from "viem";
-import { expect } from "chai";
+import { Address, checksumAddress, fromHex, parseEther } from "viem";
 
-import { deployBalancerV2 } from "@oasysgames/simple-p2e-game/hardhat/test/utils";
+import { deployBalancerV2 } from "@oasysgames/simple-p2e-game-hardhat/test-utils";
 
 describe("TestBalancerV2Helper", () => {
-  let poolOwner: Address;
-  let sender: Address;
-  let recipient: Address;
-
   let vault: ContractTypesMap["IVault"];
   let bv2helper: ContractTypesMap["IBalancerV2Helper"];
   let woas: ContractTypesMap["IWOAS"];
   let smp: ContractTypesMap["MockSMP"];
   let pool: ContractTypesMap["IVaultPool"];
 
+  let poolOwner: Address;
+  let sender: Address;
+  let recipient: Address;
   let tokens: [Address, Address], woasIdx: number, smpIdx: number;
 
   before(async () => {
@@ -28,7 +27,7 @@ describe("TestBalancerV2Helper", () => {
     sender = owner.account.address;
     recipient = owner.account.address;
 
-    // Deploy SMP token
+    // Deploy SMP token and store address
     smp = await hre.viem.deployContract("MockSMP");
 
     // Prepare test tokens for liquidity operations

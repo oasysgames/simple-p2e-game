@@ -1,19 +1,33 @@
 {
-  "name": "hardhat-integration",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "@oasysgames/simple-p2e-game-hardhat",
+  "version": "0.0.2",
+  "author": "oasysgames",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "contracts",
+    "test"
+  ],
+  "exports": {
+    "./test-utils": {
+      "types": "./dist/test-utils/index.d.ts",
+      "import": "./dist/test-utils/index.js",
+      "require": "./dist/test-utils/index.js"
+    }
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "typesVersions": {
+    "*": {
+      "test-utils": ["./dist/test-utils/index.d.ts"]
+    }
+  },
+  "scripts": {
+    "release-build": "rm -rf dist; hardhat compile && tsc -p tsconfig.release.json && hardhat test"
+  },
   "dependencies": {
-    "hardhat": "^2.24.3"
+    "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
-    "@oasysgames/simple-p2e-game": "file:.."
+    "@oasysgames/simple-p2e-game": "file:..",
+    "@oasysgames/simple-p2e-game-hardhat": "file:"
   }
 }

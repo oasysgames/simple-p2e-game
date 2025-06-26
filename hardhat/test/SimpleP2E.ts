@@ -1,31 +1,30 @@
+import { expect } from "chai";
 import hre from "hardhat";
 import { ContractTypesMap } from "hardhat/types/artifacts";
-import { parseEther, checksumAddress, type Address } from "viem";
-import { expect } from "chai";
+import { Address, checksumAddress, parseEther } from "viem";
 
 import {
   deploySimpleP2E,
-  deployMockNFTs,
-} from "@oasysgames/simple-p2e-game/hardhat/test/utils";
+  deployMockERC721,
+} from "@oasysgames/simple-p2e-game-hardhat/test-utils";
 
 describe("TestSimpleP2E", () => {
-  let buyer: Address;
-  let lpRecipient: Address;
-  let revenueRecipient: Address;
-  let nativeOAS: Address;
-
+  let p2e: ContractTypesMap["ISimpleP2E"];
   let woas: ContractTypesMap["IWOAS"];
   let poas: ContractTypesMap["MockPOAS"];
   let smp: ContractTypesMap["MockSMP"];
-  let p2e: ContractTypesMap["SimpleP2E"];
-
   let nfts: ContractTypesMap["MockSimpleP2EERC721"][];
+
+  let nativeOAS: Address;
+  let buyer: Address;
+  let lpRecipient: Address;
+  let revenueRecipient: Address;
   let nftAddrs: Address[];
 
   // Helper function to verify NFT ownership after purchase
   const expectNFTsOwner = async (tokenId: number) => {
     const owners = await Promise.all(
-      nfts.map((nft) => nft.read.ownerOf([BigInt(tokenId)]))
+      nfts.map((x) => x.read.ownerOf([BigInt(tokenId)]))
     );
     expect(owners).to.eql(owners.map((_) => buyer));
   };
@@ -39,7 +38,7 @@ describe("TestSimpleP2E", () => {
     revenueRecipient = checksumAddress(revenueRecipientWallet.account.address);
 
     // Deploy SimpleP2E ecosystem with Balancer V2 pool and initial liquidity
-    ({ nativeOAS, woas, poas, smp, p2e } = await deploySimpleP2E({
+    ({ woas, poas, smp, p2e, nativeOAS } = await deploySimpleP2E({
       initialLiquidity: {
         woas: parseEther("1000"), // Initial WOAS liquidity
         smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)
@@ -51,8 +50,8 @@ describe("TestSimpleP2E", () => {
     }));
 
     // Deploy mock NFT contracts for P2E game testing
-    nfts = await deployMockNFTs(p2e.address, 3);
-    nftAddrs = nfts.map((nft) => nft.address);
+    nfts = await deployMockERC721(p2e.address, 3);
+    nftAddrs = nfts.map((x) => x.address);
 
     // Mint tokens to the buyer for testing different payment methods
     // WOAS: Wrap native OAS to get WOAS tokens

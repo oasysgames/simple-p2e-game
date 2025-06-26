@@ -43,32 +43,36 @@ npx hardhat init
 # Note2: `@nomicfoundation/hardhat-toolbox-viem`のインストールを選択
 ```
 
-リリースページから最新Verのtarballパッケージをインストール。
+[リリースページ](./releases)から最新Verのコントラクトパッケージをインストール。
 ```shell
 npm install --save-dev https://github.com/oasysgames/simple-p2e-game/releases/download/vX.X.X/oasysgames-simple-p2e-game-X.X.X.tgz
 ```
 
-インストールしただけではコンパイル対象にならないため`contracts/SimpleP2E.sol`等にインポート処理を追加してコンパイラに存在を伝える。
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import "@oasysgames/simple-p2e-game/contracts/test-utils/TestUtilsImporter.sol";
+Hardhat統合用の追加パッケージをインストール。
+```shell
+npm install --save-dev https://github.com/oasysgames/simple-p2e-game/releases/download/vX.X.X/oasysgames-simple-p2e-game-hardhat-X.X.X.tgz
 ```
 
-[このテストコード](hardhat/test/TestSimpleP2E.ts)を`test/TestSimpleP2E.ts`へコピーして動作チェック。
+インストールしただけではコンパイル対象にならないためインポート用コードを配置してコンパイラに存在を認識させる。
+```bash
+cp node_modules/@oasysgames/simple-p2e-game-hardhat/contracts/SimpleP2ETestUtils.sol contracts/
+```
+
+テストコードをコピーして動作チェック。
 ```shell
-npx hardhat test test/TestSimpleP2E.ts
+cp node_modules/@oasysgames/simple-p2e-game-hardhat/test/* test/
+
+npx hardhat test
 ```
 
 基本的な使い方をテストコードから抜粋。
 ```typescript
-import { deploySimpleP2E, deployMockNFTs } from "@oasysgames/simple-p2e-game/hardhat/test/utils";
+import { deploySimpleP2E, deployMockERC721 } from "@oasysgames/simple-p2e-game-hardhat/test-utils";
 
 describe("TestMyContract", () => {
   it("TestCase", async() => {
     // Deploy SimpleP2E ecosystem with Balancer V2 pool and initial liquidity
-    const { nativeOAS, woas, poas, smp, p2e } = await deploySimpleP2E({
+    const { woas, poas, smp, p2e, nativeOAS } = await deploySimpleP2E({
       initialLiquidity: {
         woas: parseEther("1000"), // Initial WOAS liquidity
         smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)

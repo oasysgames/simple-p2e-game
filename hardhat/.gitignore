@@ -11,3 +11,6 @@
 # solidity-coverage files
 /coverage
 /coverage.json
+
+# build files
+/dist

@@ -16,13 +16,13 @@
 import hre from "hardhat";
 import { ContractTypesMap } from "hardhat/types/artifacts";
 import {
-  keccak256,
-  stringToBytes,
-  parseEther,
   Address,
   fromHex,
-  zeroAddress,
+  keccak256,
+  parseEther,
+  stringToBytes,
   toHex,
+  zeroAddress,
 } from "viem";
 
 /**
@@ -105,7 +105,14 @@ const setupDeployer = async () => {
  * @returns bv2helper - Helper contract for simplified pool operations
  * @returns woas - Wrapped OAS token contract for native currency support
  */
-export const deployBalancerV2 = async (params?: { salt?: string }) => {
+export const deployBalancerV2 = async (params?: {
+  salt?: string;
+}): Promise<{
+  vault: ContractTypesMap["IVault"];
+  poolFactory: ContractTypesMap["IWeightedPoolFactory"];
+  bv2helper: ContractTypesMap["IBalancerV2Helper"];
+  woas: ContractTypesMap["IWOAS"];
+}> => {
   const { deployContract, getContractAt } = hre.viem;
   const { deployOpts, writeOpts } = await setupDeployer();
 
@@ -207,7 +214,17 @@ export const deploySimpleP2E = async (params: {
     smpBurnRatio?: bigint;
     smpLiquidityRatio?: bigint;
   };
-}) => {
+}): Promise<{
+  vault: ContractTypesMap["IVault"];
+  poolFactory: ContractTypesMap["IWeightedPoolFactory"];
+  bv2helper: ContractTypesMap["IBalancerV2Helper"];
+  woas: ContractTypesMap["IWOAS"];
+  nativeOAS: Address;
+  poas: ContractTypesMap["MockPOAS"];
+  smp: ContractTypesMap["MockSMP"];
+  pool: ContractTypesMap["IVaultPool"];
+  p2e: ContractTypesMap["ISimpleP2E"];
+}> => {
   const { deployContract, getContractAt } = hre.viem;
   const { deployOpts, writeOpts } = await setupDeployer();
   const { vault, poolFactory, bv2helper, woas } = await deployBalancerV2();
@@ -236,7 +253,7 @@ export const deploySimpleP2E = async (params: {
   const { pool: poolAddr } = (await bv2helper.getEvents.PoolCreated())[0].args;
   const pool = await getContractAt("IVaultPool", poolAddr!);
 
-  const p2e = await deployContract(
+  const p2eImpl = await deployContract(
     "SimpleP2E",
     [
       poas.address,
@@ -249,6 +266,7 @@ export const deploySimpleP2E = async (params: {
     ],
     deployOpts
   );
+  const p2e = await getContractAt("ISimpleP2E", p2eImpl.address);
 
   // Mint WOAS by depositing ETH and approve Vault for liquidity provision
   await woas.write.deposit({
@@ -323,7 +341,7 @@ export const deploySimpleP2E = async (params: {
  * const nfts = await deployMockNFTs(p2eAddress, 3);
  * // Results: [NFT1, NFT2, NFT3] contracts
  */
-export const deployMockNFTs = async (
+export const deployMockERC721 = async (
   simpleP2E: `0x${string}`,
   count: number
 ) => {
