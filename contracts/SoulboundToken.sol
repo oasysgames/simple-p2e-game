@@ -2,9 +2,11 @@
 pragma solidity >=0.8.0;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {ERC721Upgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {AccessControlUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
@@ -50,20 +52,21 @@ contract SoulboundToken is
      * @param symbol_ Token symbol
      * @param baseURI_ Initial base URI for token metadata
      * @param owner_ Initial contract owner and admin
+     * @param defaultExpiration_ Default expiration duration in seconds
      */
     function initialize(
         string memory name_,
         string memory symbol_,
         string memory baseURI_,
-        address owner_
+        address owner_,
+        uint256 defaultExpiration_
     ) public initializer {
         __ERC721_init(name_, symbol_);
         __Ownable_init(owner_);
         __AccessControl_init();
 
         _baseTokenURI = baseURI_;
-
-        _defaultExpiration = 66 days;
+        _defaultExpiration = defaultExpiration_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner_);
         _grantRole(MINTER_ROLE, owner_);
@@ -73,9 +76,13 @@ contract SoulboundToken is
      * @notice Mint a new SBT
      * @param to Recipient address
      * @param tokenId Token id to mint
+     * @param data Additional data to pass to the recipient
      */
-    function mint(address to, uint256 tokenId) external onlyRole(MINTER_ROLE) {
-        _safeMint(to, tokenId);
+    function safeMint(address to, uint256 tokenId, bytes memory data)
+        external
+        onlyRole(MINTER_ROLE)
+    {
+        _safeMint(to, tokenId, data);
         _expiresAt[tokenId] = block.timestamp + _defaultExpiration;
     }
 
@@ -85,23 +92,23 @@ contract SoulboundToken is
      * @param tokenId Token id to mint
      * @param expiration Unix timestamp of expiration
      */
-    function mintWithExpiration(
+    function safeMintWithExpiration(
         address to,
         uint256 tokenId,
-        uint256 expiration
+        uint256 expiration,
+        bytes memory data
     ) external onlyRole(MINTER_ROLE) {
         if (expiration <= block.timestamp) {
             revert InvalidExpiration();
         }
-        _safeMint(to, tokenId);
+        _safeMint(to, tokenId, data);
         _expiresAt[tokenId] = expiration;
     }
 
     /// @notice Burn an existing SBT
     /// @param tokenId Token id to burn
     function burn(uint256 tokenId) external {
-        address owner = ownerOf(tokenId);
-        if (msg.sender != owner && !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
+        if (msg.sender != ownerOf(tokenId)) {
             revert Unauthorized();
         }
         _burn(tokenId);
@@ -133,18 +140,18 @@ contract SoulboundToken is
         return _expiresAt[tokenId];
     }
 
+    /// @notice Check if a token is expired
+    function isExpired(uint256 tokenId) external view returns (bool) {
+        return _expiresAt[tokenId] < block.timestamp;
+    }
+
     /// @dev Returns the base URI for all tokens
     function _baseURI() internal view override returns (string memory) {
         return _baseTokenURI;
     }
 
     /// @inheritdoc ERC721Upgradeable
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
         return string.concat(_baseTokenURI, Strings.toString(tokenId));
     }
@@ -163,24 +170,23 @@ contract SoulboundToken is
     // Non-transferable overrides
     // ---------------------------------------------------------------------
 
+    /// @dev Override approval to prevent any approvals
     function approve(address, uint256) public pure override {
         revert Soulbound();
     }
 
+    /// @dev Override setApprovalForAll to prevent any approvals
     function setApprovalForAll(address, bool) public pure override {
         revert Soulbound();
     }
 
+    /// @dev Override transferFrom to prevent any transfers
     function transferFrom(address, address, uint256) public pure override {
         revert Soulbound();
     }
 
-    function safeTransferFrom(address, address, uint256) public pure override {
-        revert Soulbound();
-    }
-
-    function safeTransferFrom(address, address, uint256, bytes memory) public pure override {
+    /// @dev Override the internal _safeTransfer function to prevent any transfers
+    function _safeTransfer(address, address, uint256, bytes memory) internal pure override {
         revert Soulbound();
     }
 }
-
