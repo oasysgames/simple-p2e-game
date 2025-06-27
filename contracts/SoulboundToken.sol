@@ -4,7 +4,6 @@ pragma solidity >=0.8.0;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC721Upgradeable} from
     "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {AccessControlUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -14,12 +13,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
  * @notice Minimal ERC721 Soulbound Token implementation
  * @dev Tokens are non-transferable and the contract is upgradeable.
  */
-contract SoulboundToken is
-    Initializable,
-    ERC721Upgradeable,
-    OwnableUpgradeable,
-    AccessControlUpgradeable
-{
+contract SoulboundToken is Initializable, ERC721Upgradeable, AccessControlUpgradeable {
     /// @dev Revert when attempting a prohibited transfer or approval
     error Soulbound();
 
@@ -62,7 +56,6 @@ contract SoulboundToken is
         uint256 defaultExpiration_
     ) public initializer {
         __ERC721_init(name_, symbol_);
-        __Ownable_init(owner_);
         __AccessControl_init();
 
         _baseTokenURI = baseURI_;
@@ -115,18 +108,8 @@ contract SoulboundToken is
         delete _expiresAt[tokenId];
     }
 
-    /// @notice Grant MINTER_ROLE to an account
-    function addMinter(address account) external onlyOwner {
-        _grantRole(MINTER_ROLE, account);
-    }
-
-    /// @notice Revoke MINTER_ROLE from an account
-    function removeMinter(address account) external onlyOwner {
-        _revokeRole(MINTER_ROLE, account);
-    }
-
     /// @notice Update base URI for token metadata
-    function setBaseURI(string memory newBaseURI) external onlyOwner {
+    function setBaseURI(string memory newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _baseTokenURI = newBaseURI;
     }
 
