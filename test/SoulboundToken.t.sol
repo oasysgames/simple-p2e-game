@@ -22,6 +22,10 @@ contract SoulboundTokenTest is Test {
     address minter;
     string constant BASE_URI = "https://token/";
 
+    // Get role constants before vm.expectRevert to avoid revert interference
+    bytes32 constant DEFAULT_ADMIN_ROLE = 0x0;
+    bytes32 constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     function setUp() public {
         owner = makeAddr("owner");
         console.log("owner", owner);
@@ -53,8 +57,8 @@ contract SoulboundTokenTest is Test {
     }
 
     function test_initialize_sets_roles() public {
-        assertTrue(sbt.hasRole(sbt.DEFAULT_ADMIN_ROLE(), owner));
-        assertTrue(sbt.hasRole(sbt.MINTER_ROLE(), owner));
+        assertTrue(sbt.hasRole(DEFAULT_ADMIN_ROLE, owner));
+        assertTrue(sbt.hasRole(MINTER_ROLE, owner));
         assertEq(sbt.name(), "Soulbound");
         assertEq(sbt.symbol(), "SBT");
     }
@@ -70,7 +74,7 @@ contract SoulboundTokenTest is Test {
     function test_safeMint_restricted() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, sbt.MINTER_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, MINTER_ROLE
             )
         );
         vm.prank(user);
@@ -135,8 +139,8 @@ contract SoulboundTokenTest is Test {
 
     function test_grantRole() public {
         vm.prank(owner);
-        sbt.grantRole(sbt.MINTER_ROLE(), minter);
-        assertTrue(sbt.hasRole(sbt.MINTER_ROLE(), minter));
+        sbt.grantRole(MINTER_ROLE, minter);
+        assertTrue(sbt.hasRole(MINTER_ROLE, minter));
         vm.prank(minter);
         sbt.mint(minter);
         assertEq(sbt.ownerOf(0), minter);
@@ -146,10 +150,10 @@ contract SoulboundTokenTest is Test {
         vm.prank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, sbt.MINTER_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, DEFAULT_ADMIN_ROLE
             )
         );
-        sbt.grantRole(sbt.MINTER_ROLE(), minter);
+        sbt.grantRole(MINTER_ROLE, minter);
     }
 
     function test_assignTokenId() public {
