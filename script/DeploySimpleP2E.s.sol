@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0;
+
+import {Script, console} from "forge-std/Script.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {SimpleP2E} from "../contracts/SimpleP2E.sol";
+
+/**
+ * @title DeploySimpleP2E
+ * @notice Deploys the SimpleP2E implementation and proxy.
+ */
+contract DeploySimpleP2E is Script {
+    function run() external returns (TransparentUpgradeableProxy proxy) {
+        address poas = vm.envAddress("P2E_POAS");
+        address liquidityPool = vm.envAddress("P2E_LIQUIDITY_POOL");
+        address lpRecipient = vm.envAddress("P2E_LP_RECIPIENT");
+        address revenueRecipient = vm.envAddress("P2E_REVENUE_RECIPIENT");
+        uint256 smpBasePrice = vm.envUint("P2E_SMP_BASE_PRICE");
+        uint256 smpBurnRatio = vm.envUint("P2E_SMP_BURN_RATIO");
+        uint256 smpLiquidityRatio = vm.envUint("P2E_SMP_LIQUIDITY_RATIO");
+        address admin = vm.envAddress("P2E_ADMIN");
+
+        // print deployment config
+        console.log("pOAS:", poas);
+        console.log("Liquidity Pool:", liquidityPool);
+        console.log("LP Recipient:", lpRecipient);
+        console.log("Revenue Recipient:", revenueRecipient);
+        console.log("SMP Base Price:", smpBasePrice);
+        console.log("SMP Burn Ratio:", smpBurnRatio);
+        console.log("SMP Liquidity Ratio:", smpLiquidityRatio);
+        console.log("Admin:", admin);
+
+        vm.startBroadcast();
+
+        SimpleP2E implementation = new SimpleP2E(
+            poas,
+            liquidityPool,
+            lpRecipient,
+            revenueRecipient,
+            smpBasePrice,
+            smpBurnRatio,
+            smpLiquidityRatio
+        );
+
+        proxy = new TransparentUpgradeableProxy(
+            address(implementation),
+            admin,
+            abi.encodeWithSelector(SimpleP2E.initialize.selector, admin)
+        );
+
+        // print deployment result
+        bytes32 ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+        console.log("--------------------------------");
+        console.log("SimpleP2E(implementation):", address(implementation));
+        console.log("ProxyAdmin:", address(uint160(uint256(vm.load(address(proxy), ADMIN_SLOT)))));
+        console.log("Proxy:", address(proxy));
+
+        vm.stopBroadcast();
+    }
+}
+
