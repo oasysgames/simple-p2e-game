@@ -1,56 +1,55 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {TransparentUpgradeableProxy} from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy} from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {SoulboundToken} from "../contracts/SoulboundToken.sol";
-import {SoulboundTokenV2} from "../contracts/SoulboundTokenV2.sol";
 
 contract SoulboundTokenTest is Test {
-    // Storage slot for EIP-1967 proxy admin
-    bytes32 constant ADMIN_SLOT = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
-
     SoulboundToken sbt;
     TransparentUpgradeableProxy proxy;
+    ProxyAdmin proxyAdmin;
     address owner;
     address user;
-    uint256 defaultExpiration = 100;
+    address minter;
     string constant BASE_URI = "https://token/";
 
     function setUp() public {
         owner = makeAddr("owner");
+        console.log("owner", owner);
         user = makeAddr("user");
+        console.log("user", user);
+        minter = makeAddr("minter");
+        console.log("minter", minter);
 
         SoulboundToken implementation = new SoulboundToken();
+        console.log("implementation", address(implementation));
+
         vm.prank(owner);
         proxy = new TransparentUpgradeableProxy(
             address(implementation),
             owner,
             abi.encodeWithSelector(
-                SoulboundToken.initialize.selector,
-                "Soulbound",
-                "SBT",
-                BASE_URI,
-                owner,
-                defaultExpiration
+                SoulboundToken.initialize.selector, "Soulbound", "SBT", BASE_URI, owner
             )
         );
+
+        // get proxy admin address in proxy
+        bytes32 ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+        proxyAdmin = ProxyAdmin(address(uint160(uint256(vm.load(address(proxy), ADMIN_SLOT)))));
+        console.log("admin", address(proxyAdmin));
+
         sbt = SoulboundToken(address(proxy));
-    }
-
-    function _proxyAdmin() internal view returns (ProxyAdmin) {
-        address admin = address(uint160(uint256(vm.load(address(proxy), ADMIN_SLOT))));
-        return ProxyAdmin(admin);
-    }
-
-    function _upgrade(address newImpl) internal {
-        vm.prank(owner);
-        _proxyAdmin().upgradeAndCall(ITransparentUpgradeableProxy(payable(address(proxy))), newImpl, bytes(""));
+        console.log("sbt", address(sbt));
+        console.log("msg.sender", msg.sender);
     }
 
     function test_initialize_sets_roles() public {
@@ -60,46 +59,48 @@ contract SoulboundTokenTest is Test {
         assertEq(sbt.symbol(), "SBT");
     }
 
-    function test_safeMint_sets_expiration() public {
+    function test_safeMint_sets_mintedAt() public {
         vm.warp(1000);
         vm.prank(owner);
         sbt.safeMint(user, 1, "");
         assertEq(sbt.ownerOf(1), user);
-        assertEq(sbt.expirationOf(1), 1000 + defaultExpiration);
+        assertEq(sbt.mintTimeOf(1), block.timestamp);
     }
 
     function test_safeMint_restricted() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, sbt.MINTER_ROLE()
+            )
+        );
         vm.prank(user);
-        vm.expectRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
+        sbt.mint(user);
+    }
+
+    function test_mint() public {
+        vm.warp(500);
+        vm.prank(owner);
+        uint256 tokenId = sbt.mint(user);
+
+        assertEq(tokenId, 0);
+        assertEq(sbt.ownerOf(tokenId), user);
+        assertEq(sbt.mintTimeOf(tokenId), 500);
+        assertEq(sbt.balanceOf(user), 1);
+    }
+
+    function test_burn_holder() public {
+        vm.prank(owner);
         sbt.safeMint(user, 1, "");
-    }
-
-    function test_safeMintWithExpiration_invalid() public {
-        vm.prank(owner);
-        vm.expectRevert(SoulboundToken.InvalidExpiration.selector);
-        sbt.safeMintWithExpiration(user, 1, block.timestamp - 1, "");
-    }
-
-    function test_safeMintWithExpiration_custom() public {
-        vm.warp(50);
-        vm.prank(owner);
-        sbt.safeMintWithExpiration(user, 1, 200, "");
-        assertEq(sbt.expirationOf(1), 200);
-    }
-
-    function test_burn_by_owner() public {
-        vm.prank(owner);
-        sbt.safeMint(owner, 1, "");
-        vm.prank(owner);
+        vm.prank(user);
         sbt.burn(1);
-        assertEq(sbt.expirationOf(1), 0);
+        assertEq(sbt.mintTimeOf(1), 0);
     }
 
     function test_burn_unauthorized() public {
         vm.prank(owner);
-        sbt.safeMint(owner, 1, "");
-        vm.prank(user);
+        sbt.safeMint(user, 1, "");
         vm.expectRevert(SoulboundToken.Unauthorized.selector);
+        vm.prank(owner);
         sbt.burn(1);
     }
 
@@ -115,22 +116,6 @@ contract SoulboundTokenTest is Test {
         assertEq(sbt.tokenURI(2), string.concat(newURI, "2"));
     }
 
-    function test_setDefaultExpiration() public {
-        vm.prank(owner);
-        sbt.setDefaultExpiration(200);
-        vm.warp(10);
-        vm.prank(owner);
-        sbt.safeMint(owner, 1, "");
-        assertEq(sbt.expirationOf(1), 10 + 200);
-    }
-
-    function test_isExpired() public {
-        vm.prank(owner);
-        sbt.safeMint(owner, 1, "");
-        vm.warp(block.timestamp + defaultExpiration + 1);
-        assertTrue(sbt.isExpired(1));
-    }
-
     function test_non_transferable() public {
         vm.prank(owner);
         sbt.safeMint(owner, 1, "");
@@ -142,28 +127,86 @@ contract SoulboundTokenTest is Test {
         sbt.setApprovalForAll(user, true);
     }
 
-    function test_supportsInterface() public {
+    function test_supportsInterface() public view {
         assertTrue(sbt.supportsInterface(type(IAccessControl).interfaceId));
         assertTrue(sbt.supportsInterface(type(IERC721).interfaceId));
         assertFalse(sbt.supportsInterface(0x12345678));
     }
 
-    function test_upgrade_and_assignTokenId() public {
+    function test_grantRole() public {
+        vm.prank(owner);
+        sbt.grantRole(sbt.MINTER_ROLE(), minter);
+        assertTrue(sbt.hasRole(sbt.MINTER_ROLE(), minter));
+        vm.prank(minter);
+        sbt.mint(minter);
+        assertEq(sbt.ownerOf(0), minter);
+    }
+
+    function test_grantRole_restricted() public {
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, sbt.MINTER_ROLE()
+            )
+        );
+        sbt.grantRole(sbt.MINTER_ROLE(), minter);
+    }
+
+    function test_assignTokenId() public {
+        // first mint token id 0
+        vm.prank(owner);
+        sbt.mint(user);
+
+        // second mint token id 1
+        vm.prank(owner);
+        sbt.safeMint(user, 1, "");
+
+        // third mint token id 2
+        vm.prank(owner);
+        uint256 tokenId = sbt.mint(user);
+        assertEq(tokenId, 2);
+        assertEq(sbt.ownerOf(tokenId), user);
+        assertEq(sbt.mintTimeOf(tokenId), block.timestamp);
+        assertEq(sbt.balanceOf(user), 3);
+    }
+
+    function test_upgrade() public {
+        // mint token id 0
+        vm.prank(owner);
+        sbt.mint(user);
+        uint256 mintedAt = sbt.mintTimeOf(0);
+
+        // deploy v2 and upgrade
+        SoulboundToken newImpl = new SoulboundToken();
+        vm.prank(owner);
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(proxy)), address(newImpl), ""
+        );
+
+        // check token id 0
+        assertEq(sbt.ownerOf(0), user);
+        assertEq(sbt.mintTimeOf(0), mintedAt);
+
+        // mint token id 1
+        vm.prank(owner);
+        sbt.mint(user);
+
+        // check token id 1
+        assertEq(sbt.ownerOf(1), user);
+        assertEq(sbt.mintTimeOf(1), block.timestamp);
+    }
+
+    function test_upgrade_restricted() public {
         // mint token id 1 using v1 implementation
         vm.prank(owner);
         sbt.safeMint(user, 1, "");
 
         // deploy v2 and upgrade
-        SoulboundTokenV2 newImpl = new SoulboundTokenV2();
-        _upgrade(address(newImpl));
-        SoulboundTokenV2 sbtV2 = SoulboundTokenV2(address(proxy));
-
-        // version function exists only in V2
-        assertEq(sbtV2.version(), 2);
-
-        // assign token id should skip existing id 1
-        vm.prank(owner);
-        uint256 assigned = sbtV2.assignTokenId();
-        assertEq(assigned, 2);
+        SoulboundToken newImpl = new SoulboundToken();
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user));
+        vm.prank(user);
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(address(proxy)), address(newImpl), ""
+        );
     }
 }

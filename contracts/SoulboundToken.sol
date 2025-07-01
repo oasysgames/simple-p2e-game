@@ -41,7 +41,7 @@ contract SoulboundToken is
     mapping(uint256 => uint256) private _mintedAt;
 
     /// @dev Counter for token IDs
-    ///      NFT ID starts from 1
+    ///      NFT ID starts from 0
     uint256 private _nextTokenId;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
