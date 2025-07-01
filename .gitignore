@@ -14,5 +14,11 @@ docs/
 # Dotenv file
 .env
 
+# Dotenvrc file
+.envrc
+
 # NPM Packages
 *.tgz
+
+# Mac OS
+.DS_Store

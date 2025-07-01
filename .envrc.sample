@@ -1,0 +1,20 @@
+# The rpc url of the OASYS network
+export RPC_URL=https://rpc.testnet.oasys.games
+
+# The deployer private key
+export PRIVATE_KEY=""
+
+# --------------------------------------------
+# For SoulboundToken
+# ---------------------------------------------
+# The name of the soulbound token
+export SBT_NAME="Soulbound"
+# The symbol of the soulbound token
+export SBT_SYMBOL="SBT"
+# The base uri of the soulbound token
+export SBT_BASE_URI="https://token/"
+# The admin of the Soulbound Token
+# - The admin can upgrade the proxy.
+# - The admin can grant privileged access rights.
+# - The admin initially holds the minting role.
+export SBT_ADMIN="0x0000000000000000000000000000000000000000"
