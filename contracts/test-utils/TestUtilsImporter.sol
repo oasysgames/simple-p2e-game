@@ -17,6 +17,7 @@ import {IBasePoolFactory} from
 // SimpleP2E
 import {IVaultPool} from "../interfaces/IVaultPool.sol";
 import {IPOAS} from "../interfaces/IPOAS.sol";
+import {IPOASMinter} from "../interfaces/IPOASMinter.sol";
 import {ISimpleP2E} from "../interfaces/ISimpleP2E.sol";
 import {IWOAS} from "../interfaces/IWOAS.sol";
 import {ISimpleP2EERC721} from "../interfaces/ISimpleP2EERC721.sol";
@@ -31,4 +32,5 @@ import {WeightedPoolFactoryDeployer} from "./deployers/WeightedPoolFactoryDeploy
 import {BalancerV2HelperDeployer} from "./deployers/BalancerV2HelperDeployer.sol";
 import {MockSimpleP2EERC721} from "./MockSimpleP2EERC721.sol";
 import {MockPOAS} from "./MockPOAS.sol";
+import {MockPOASMinter} from "./MockPOASMinter.sol";
 import {MockSMP} from "./MockSMPv8.sol";
