@@ -2,7 +2,8 @@
 pragma solidity >=0.8.0;
 
 import {Script, console} from "forge-std/Script.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {TransparentUpgradeableProxy} from
+    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {SimpleP2E} from "../contracts/SimpleP2E.sol";
 
 /**
@@ -58,4 +59,3 @@ contract DeploySimpleP2E is Script {
         vm.stopBroadcast();
     }
 }
-

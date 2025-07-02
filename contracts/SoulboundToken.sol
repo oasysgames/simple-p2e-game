@@ -22,6 +22,9 @@ contract SoulboundToken is
     AccessControlUpgradeable,
     ISimpleP2EERC721
 {
+    /// @dev Error for invalid owner
+    error InvalidOwner();
+
     /// @dev Revert when attempting a prohibited transfer or approval
     error Soulbound();
 
@@ -62,6 +65,10 @@ contract SoulboundToken is
         string memory baseURI_,
         address owner_
     ) public initializer {
+        if (owner_ == address(0)) {
+            revert InvalidOwner();
+        }
+
         __ERC721_init(name_, symbol_);
         __AccessControl_init();
 
@@ -125,8 +132,8 @@ contract SoulboundToken is
 
     /// @inheritdoc ERC721Upgradeable
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        _requireOwned(tokenId);
-        return string.concat(_baseTokenURI, Strings.toString(tokenId));
+        // Implement custom logic here if needed
+        return super.tokenURI(tokenId);
     }
 
     /// @inheritdoc ERC721Upgradeable
@@ -141,7 +148,9 @@ contract SoulboundToken is
 
     /// @dev Assigns a unique token ID by incrementing _nextTokenId and retrying if taken
     function _assignTokenId() internal virtual returns (uint256 tokenId) {
-        uint256 maxAttempts = 100; // Prevent infinite loops
+        // Prevent infinite loops
+        // NOTE: You can change this value by upgrading this contract
+        uint256 maxAttempts = 100;
         for (uint256 i = 0; i < maxAttempts; i++) {
             tokenId = _nextTokenId++;
             if (_ownerOf(tokenId) == address(0)) {
