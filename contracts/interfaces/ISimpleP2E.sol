@@ -27,6 +27,7 @@ interface ISimpleP2E {
     error InvalidProtocolValue();
     error InvalidPool();
     error InvalidAddress();
+    error InvalidSwap(string message);
     error NoItems();
     error ArrayLengthMismatch();
     error TransferFailed();
@@ -36,7 +37,8 @@ interface ISimpleP2E {
     /// @param buyer Address of the buyer
     /// @param nfts Array of NFT contracts purchased
     /// @param paymentToken Token used for payment
-    /// @param amount Total payment amount
+    /// @param actualAmount Amount actually used for payment
+    /// @param refundAmount Amount refunded to the buyer
     /// @param burnSMP Amount of SMP burned
     /// @param liquiditySMP Amount of SMP provided to liquidity pool
     /// @param revenueSMP Amount of SMP allocated for revenue
@@ -47,7 +49,8 @@ interface ISimpleP2E {
         address buyer,
         ISimpleP2EERC721[] nfts,
         address paymentToken,
-        uint256 amount,
+        uint256 actualAmount,
+        uint256 refundAmount,
         uint256 burnSMP,
         uint256 liquiditySMP,
         uint256 revenueSMP,
@@ -83,15 +86,18 @@ interface ISimpleP2E {
      *    - Array of NFT contract addresses to purchase
      *    - Payment token address (ERC20.approve required for non-native OAS)
      *    - Payment amount in the specified token (not SMP amount)
+     *    - Excess payments are refunded using the same token type
      * 2. For non-native OAS payments, receives tokens via ERC20.transferFrom
      *    - POAS payments are received as native OAS
      * 3. Calculates required SMP token amount for the purchase
-     * 4. For non-SMP payments, swaps to required SMP amount using LP
+     * 4. For non-SMP payments, swaps to required SMP amount using LP.
+     *    Excess payment tokens are refunded at this stage.
      * 5. Burns SMP at pre-configured ratio
      * 6. Provides SMP to LP at pre-configured ratio
      *    - LP tokens are sent to pre-configured dedicated address
      * 7. Swaps remaining SMP to OAS via LP and sends to pre-configured address
      * 8. Mints and transfers NFTs to msg.sender
+     * 9. Refunds excess payment tokens remaining from step 4 swap
      *
      * @param nfts Array of NFT contracts to purchase
      * @param token Token address for payment:
@@ -124,6 +130,12 @@ interface ISimpleP2E {
      * @return smp SMP token address
      */
     function getSMP() external view returns (address smp);
+
+    /**
+     * @dev Get current POASMinter contract address
+     * @return poasMinter Current POASMinter contract address
+     */
+    function getPOASMinter() external view returns (address poasMinter);
 
     /**
      * @dev Get Balancer V2 pool address

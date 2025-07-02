@@ -15,6 +15,7 @@ import {ISimpleP2E} from "../contracts/interfaces/ISimpleP2E.sol";
 import {IVaultPool} from "../contracts/interfaces/IVaultPool.sol";
 import {ISimpleP2EERC721} from "../contracts/interfaces/ISimpleP2EERC721.sol";
 import {IPOAS} from "../contracts/interfaces/IPOAS.sol";
+import {IPOASMinter} from "../contracts/interfaces/IPOASMinter.sol";
 import {IWOAS} from "../contracts/interfaces/IWOAS.sol";
 
 // Test utilities
@@ -25,7 +26,7 @@ import {BalancerV2HelperDeployer} from
     "../contracts/test-utils/deployers/BalancerV2HelperDeployer.sol";
 import {IBalancerV2Helper} from "../contracts/test-utils/interfaces/IBalancerV2Helper.sol";
 import {MockSMP} from "../contracts/test-utils/MockSMPv8.sol";
-import {MockPOAS} from "../contracts/test-utils/MockPOAS.sol";
+import {MockPOASMinter} from "../contracts/test-utils/MockPOASMinter.sol";
 import {MockSimpleP2EERC721} from "../contracts/test-utils/MockSimpleP2EERC721.sol";
 
 contract SimpleP2ETest is Test {
@@ -38,6 +39,7 @@ contract SimpleP2ETest is Test {
     IERC20 woas;
     IERC20 smp;
     IPOAS poas;
+    IPOASMinter poasMinter;
     address nativeOAS = address(0);
 
     address deployer; // Deploys all contracts
@@ -102,8 +104,8 @@ contract SimpleP2ETest is Test {
 
         // Deploy payment tokens
         IWOAS _woas = IWOAS(vaultDeployer.woas());
-        MockPOAS _poas = new MockPOAS();
         MockSMP _smp = new MockSMP();
+        poasMinter = IPOASMinter(new MockPOASMinter());
 
         // Create the BalancerV2 Pool
         pool = bv2helper.createPool(
@@ -118,7 +120,7 @@ contract SimpleP2ETest is Test {
         );
 
         SimpleP2E _p2e = new SimpleP2E({
-            poas: address(_poas),
+            poasMinter: address(poasMinter),
             liquidityPool: address(pool),
             lpRecipient: lpRecipient,
             revenueRecipient: revenueRecipient,
@@ -130,7 +132,7 @@ contract SimpleP2ETest is Test {
         p2eAddr = address(_p2e);
         p2e = ISimpleP2E(p2eAddr);
         woas = IERC20(address(_woas));
-        poas = IPOAS(address(_poas));
+        poas = IPOAS(poasMinter.poas());
         smp = IERC20(address(_smp));
 
         // Grant relayer roles to helper contract
@@ -176,7 +178,7 @@ contract SimpleP2ETest is Test {
 
             // for POAS payment
             vm.deal(sender, userInitialBalance);
-            _poas.mint{value: userInitialBalance}(sender, userInitialBalance);
+            poasMinter.mint{value: userInitialBalance}(sender, userInitialBalance);
 
             // for SMP Payment
             vm.deal(sender, userInitialBalance);
@@ -202,6 +204,15 @@ contract SimpleP2ETest is Test {
     function test_getSMP() public view {
         address smpAddr = p2e.getSMP();
         assertEq(smpAddr, address(smp), "getSMP should return correct SMP address");
+    }
+
+    function test_getPOASMinter() public view {
+        address poasMinterAddr = p2e.getPOASMinter();
+        assertEq(
+            poasMinterAddr,
+            address(poasMinter),
+            "getPOASMinter should return correct POASMiner address"
+        );
     }
 
     function test_getLiquidityPool() public view {
@@ -270,18 +281,20 @@ contract SimpleP2ETest is Test {
         uint256 expectedLP = 30_101_582_090_568_717_949; // Expected BPT from 60 SMP liquidity
         uint256 expectedRevenue = 3_771_182_651_759_514_905; // Expected OAS from 15 SMP swap
 
-        uint256 totalPrice = p2e.queryPrice(triNFTs, nativeOAS);
+        uint256 actualAmount = p2e.queryPrice(triNFTs, nativeOAS);
+        uint256 refundAmount = 0.1 ether;
+        uint256 paymentAmount = actualAmount + refundAmount;
 
         // Set up event expectations for the complete payment flow
-        _expect_receive_token_events(nativeOAS, totalPrice);
-        _expect_swap_oas_to_smp_events(nativeOAS, totalPrice);
+        _expect_receive_token_events(nativeOAS, paymentAmount);
+        _expect_swap_oas_to_smp_events(nativeOAS, actualAmount, paymentAmount);
         _expect_burn_smp_events();
         _expect_provide_liquidity_events(expectedLP);
         _expect_revenue_events(expectedRevenue);
-        _expect_purchased_event(sender, nativeOAS, totalPrice, expectedRevenue);
+        _expect_purchased_event(sender, nativeOAS, actualAmount, refundAmount, expectedRevenue);
 
         // Execute purchase with native OAS
-        p2e.purchase{gas: purchaseGasLimit, value: totalPrice}(triNFTs, nativeOAS, totalPrice);
+        p2e.purchase{gas: purchaseGasLimit, value: paymentAmount}(triNFTs, nativeOAS, paymentAmount);
 
         // Verify that NFTs were minted to the sender
         _expect_minted_nfts(sender);
@@ -289,7 +302,7 @@ contract SimpleP2ETest is Test {
         // Verify final balances for all parties
         _expect_balances({
             _account: sender,
-            _native: userInitialBalance - totalPrice,
+            _native: userInitialBalance - actualAmount,
             _woas: userInitialBalance,
             _poas: userInitialBalance,
             _smp: userInitialBalance,
@@ -323,19 +336,21 @@ contract SimpleP2ETest is Test {
         uint256 expectedLP = 30_101_582_090_568_717_949; // Same as native OAS
         uint256 expectedRevenue = 3_771_182_651_759_514_905; // Same as native OAS
 
-        uint256 totalPrice = p2e.queryPrice(triNFTs, address(woas));
-        woas.approve(p2eAddr, totalPrice);
+        uint256 actualAmount = p2e.queryPrice(triNFTs, address(woas));
+        uint256 refundAmount = 0.1 ether;
+        uint256 paymentAmount = actualAmount + refundAmount;
+        woas.approve(p2eAddr, paymentAmount);
 
         // Set up event expectations (same flow as native OAS)
-        _expect_receive_token_events(address(woas), totalPrice);
-        _expect_swap_oas_to_smp_events(address(woas), totalPrice);
+        _expect_receive_token_events(address(woas), paymentAmount);
+        _expect_swap_oas_to_smp_events(address(woas), actualAmount, paymentAmount);
         _expect_burn_smp_events();
         _expect_provide_liquidity_events(expectedLP);
         _expect_revenue_events(expectedRevenue);
-        _expect_purchased_event(sender, address(woas), totalPrice, expectedRevenue);
+        _expect_purchased_event(sender, address(woas), actualAmount, refundAmount, expectedRevenue);
 
         // Execute purchase with WOAS
-        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(woas), totalPrice);
+        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(woas), paymentAmount);
 
         // Verify that NFTs were minted to the sender
         _expect_minted_nfts(sender);
@@ -344,7 +359,7 @@ contract SimpleP2ETest is Test {
         _expect_balances({
             _account: sender,
             _native: userInitialBalance,
-            _woas: userInitialBalance - totalPrice,
+            _woas: userInitialBalance - actualAmount,
             _poas: userInitialBalance,
             _smp: userInitialBalance,
             _lp: 0
@@ -377,19 +392,21 @@ contract SimpleP2ETest is Test {
         uint256 expectedLP = 30_101_582_090_568_717_949; // Same as native OAS
         uint256 expectedRevenue = 3_771_182_651_759_514_905; // Same as native OAS
 
-        uint256 totalPrice = p2e.queryPrice(triNFTs, address(poas));
-        poas.approve(p2eAddr, totalPrice);
+        uint256 actualAmount = p2e.queryPrice(triNFTs, address(poas));
+        uint256 refundAmount = 0.1 ether;
+        uint256 paymentAmount = actualAmount + refundAmount;
+        poas.approve(p2eAddr, paymentAmount);
 
         // Set up event expectations (POAS has unique burn + payment flow)
-        _expect_receive_token_events(address(poas), totalPrice);
-        _expect_swap_oas_to_smp_events(address(poas), totalPrice);
+        _expect_receive_token_events(address(poas), paymentAmount);
+        _expect_swap_oas_to_smp_events(address(poas), actualAmount, paymentAmount);
         _expect_burn_smp_events();
         _expect_provide_liquidity_events(expectedLP);
         _expect_revenue_events(expectedRevenue);
-        _expect_purchased_event(sender, address(poas), totalPrice, expectedRevenue);
+        _expect_purchased_event(sender, address(poas), actualAmount, refundAmount, expectedRevenue);
 
         // Execute purchase with POAS
-        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(poas), totalPrice);
+        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(poas), paymentAmount);
 
         // Verify that NFTs were minted to the sender
         _expect_minted_nfts(sender);
@@ -399,7 +416,7 @@ contract SimpleP2ETest is Test {
             _account: sender,
             _native: userInitialBalance,
             _woas: userInitialBalance,
-            _poas: userInitialBalance - totalPrice,
+            _poas: userInitialBalance - actualAmount,
             _smp: userInitialBalance,
             _lp: 0
         });
@@ -431,20 +448,26 @@ contract SimpleP2ETest is Test {
         uint256 expectedLP = 29_988_743_440_434_520_206; // Slightly different from OAS due to no swap slippage
         uint256 expectedRevenue = 3_742_978_167_339_850_000; // Different from OAS due to direct SMP usage
 
-        uint256 totalPrice = triNFT_SMP_Price; // Direct SMP price (3 × 50 SMP)
-        smp.approve(p2eAddr, totalPrice);
+        uint256 actualAmount = triNFT_SMP_Price; // Direct SMP price (3 × 50 SMP)
+        smp.approve(p2eAddr, actualAmount + 1);
+
+        // Excess or shortage is not allowed for SMP payments
+        vm.expectRevert(ISimpleP2E.InvalidPaymentAmount.selector);
+        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(smp), actualAmount + 1);
+        vm.expectRevert(ISimpleP2E.InvalidPaymentAmount.selector);
+        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(smp), actualAmount - 1);
 
         // Set up event expectations (no initial swap, direct SMP processing)
-        _expect_receive_token_events(address(smp), totalPrice);
+        _expect_receive_token_events(address(smp), actualAmount);
         // Note: _expect_swap_oas_to_smp_events will skip for SMP tokens
-        _expect_swap_oas_to_smp_events(address(smp), totalPrice);
+        _expect_swap_oas_to_smp_events(address(smp), actualAmount, actualAmount);
         _expect_burn_smp_events();
         _expect_provide_liquidity_events(expectedLP);
         _expect_revenue_events(expectedRevenue);
-        _expect_purchased_event(sender, address(smp), totalPrice, expectedRevenue);
+        _expect_purchased_event(sender, address(smp), actualAmount, 0, expectedRevenue);
 
         // Execute purchase with SMP
-        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(smp), totalPrice);
+        p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(smp), actualAmount);
 
         // Verify that NFTs were minted to the sender
         _expect_minted_nfts(sender);
@@ -455,7 +478,7 @@ contract SimpleP2ETest is Test {
             _native: userInitialBalance,
             _woas: userInitialBalance,
             _poas: userInitialBalance,
-            _smp: userInitialBalance - totalPrice,
+            _smp: userInitialBalance - actualAmount,
             _lp: 0
         });
         _expect_balances({_account: p2eAddr, _native: 0, _woas: 0, _poas: 0, _smp: 0, _lp: 0});
@@ -500,7 +523,11 @@ contract SimpleP2ETest is Test {
         }
     }
 
-    function _expect_swap_oas_to_smp_events(address tokenIn, uint256 amountIn) internal {
+    function _expect_swap_oas_to_smp_events(
+        address tokenIn,
+        uint256 actualAmount,
+        uint256 paymentAmount
+    ) internal {
         if (tokenIn == address(smp)) {
             return; // No swap needed if SMP can be used directly
         }
@@ -508,17 +535,17 @@ contract SimpleP2ETest is Test {
         if (tokenIn == address(woas)) {
             // Expect WOAS approval for swap: P2E -> Vault
             vm.expectEmit(address(woas));
-            emit Approval(p2eAddr, address(vault), amountIn);
+            emit Approval(p2eAddr, address(vault), paymentAmount);
         }
 
         // Expect swap: tokenIn -> SMP (always results in triNFT_SMP_Price SMP)
         vm.expectEmit(address(vault));
-        emit Swap(pool.getPoolId(), woas, smp, amountIn, triNFT_SMP_Price);
+        emit Swap(pool.getPoolId(), woas, smp, actualAmount, triNFT_SMP_Price);
 
         if (tokenIn == address(woas)) {
             // Expect WOAS transfer for swap: P2E -> Vault
             vm.expectEmit(address(woas));
-            emit Transfer(p2eAddr, address(vault), amountIn);
+            emit Transfer(p2eAddr, address(vault), actualAmount);
         }
     }
 
@@ -567,7 +594,8 @@ contract SimpleP2ETest is Test {
     function _expect_purchased_event(
         address buyer,
         address paymentToken,
-        uint256 amount,
+        uint256 actualAmount,
+        uint256 refundAmount,
         uint256 expectedRevenueOAS
     ) internal {
         vm.expectEmit(p2eAddr);
@@ -575,7 +603,8 @@ contract SimpleP2ETest is Test {
             buyer,
             triNFTs,
             paymentToken,
-            amount,
+            actualAmount,
+            refundAmount,
             triNFT_SMP_Burn,
             triNFT_SMP_Liquidity,
             triNFT_SMP_Revenue,

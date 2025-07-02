@@ -5,6 +5,7 @@ pragma solidity >=0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
@@ -22,6 +23,7 @@ import {ISimpleP2E} from "./interfaces/ISimpleP2E.sol";
 import {IVaultPool} from "./interfaces/IVaultPool.sol";
 import {ISimpleP2EERC721} from "./interfaces/ISimpleP2EERC721.sol";
 import {IPOAS} from "./interfaces/IPOAS.sol";
+import {IPOASMinter} from "./interfaces/IPOASMinter.sol";
 
 /**
  * @title SimpleP2E
@@ -49,7 +51,7 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
     // Immutable configuration
     address private immutable _vault;
     address private immutable _woas;
-    address private immutable _poas;
+    address private immutable _poasMinter;
     address private immutable _smp;
     address private immutable _liquidityPool;
     address private immutable _lpRecipient;
@@ -60,7 +62,7 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
-        address poas,
+        address poasMinter,
         address liquidityPool,
         address lpRecipient,
         address revenueRecipient,
@@ -68,7 +70,7 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
         uint256 smpBurnRatio,
         uint256 smpLiquidityRatio
     ) {
-        if (_isZeroAddress(poas) || _isZeroAddress(liquidityPool)) {
+        if (_isZeroAddress(poasMinter) || _isZeroAddress(liquidityPool)) {
             revert InvalidPaymentToken();
         }
         if (_isZeroAddress(lpRecipient) || _isZeroAddress(revenueRecipient)) {
@@ -102,7 +104,7 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
 
         _vault = address(vault);
         _woas = woas;
-        _poas = poas;
+        _poasMinter = poasMinter;
         _smp = smp;
         _liquidityPool = liquidityPool;
         _lpRecipient = lpRecipient;
@@ -126,12 +128,17 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
 
     /// @inheritdoc ISimpleP2E
     function getPOAS() external view returns (address poas) {
-        return _poas;
+        return IPOASMinter(_poasMinter).poas();
     }
 
     /// @inheritdoc ISimpleP2E
     function getSMP() external view returns (address smp) {
         return _smp;
+    }
+
+    /// @inheritdoc ISimpleP2E
+    function getPOASMinter() external view returns (address poasMinter) {
+        return _poasMinter;
     }
 
     /// @inheritdoc ISimpleP2E
@@ -205,20 +212,9 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
         // Calculate total SMP price required for all NFTs
         uint256 requiredSMP = _getTotalSMPPrice(nfts);
 
-        // Convert payment token to SMP if necessary
-        uint256 receivedSMP;
-        if (_isSMP(paymentToken)) {
-            // Direct SMP payment - no conversion needed
-            receivedSMP = amount;
-        } else {
-            // Convert OAS variants (native OAS/WOAS/POAS) to exact SMP amount
-            receivedSMP = _swapAnyOAStoSMP(requiredSMP, paymentToken, amount);
-        }
-
-        // Verify we received the exact SMP amount needed for the purchase
-        if (receivedSMP != requiredSMP) {
-            revert InvalidPaymentAmount();
-        }
+        // Swap payment token to SMP
+        uint256 actualAmount = _payWithSwapToSMP(paymentToken, amount, requiredSMP);
+        uint256 refundAmount = amount - actualAmount;
 
         // Burn configured percentage of SMP
         uint256 burnSMP = _burnSMP(requiredSMP);
@@ -234,14 +230,20 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
         }
 
         // Mint NFTs to buyer
-        _mintNFTs(nfts, msg.sender);
+        _mintNFTs(msg.sender, nfts);
+
+        // Refund excess native OAS/WOAS/POAS
+        if (refundAmount > 0) {
+            _refundAnyOAS(msg.sender, paymentToken, refundAmount);
+        }
 
         // Emit comprehensive purchase event
         emit Purchased(
             msg.sender,
             nfts,
             paymentToken,
-            amount,
+            actualAmount,
+            refundAmount,
             burnSMP,
             liquiditySMP,
             revenueSMP,
@@ -268,7 +270,7 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
 
     /// @dev Check if the token is POAS
     function _isPOAS(address paymentToken) internal view returns (bool) {
-        return paymentToken == _poas;
+        return paymentToken == IPOASMinter(_poasMinter).poas();
     }
 
     /// @dev Check if the token is SMP
@@ -359,10 +361,14 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
 
     /// @dev Execute token swap via WOAS-SMP pool
     /// @param swapData Swap configuration data
-    /// @return receivedAmount Actual amount received
-    function _swap(SwapData memory swapData) internal returns (uint256 receivedAmount) {
+    /// @return actualIn Actual input token amount swapped
+    /// @return actualOut Actual output token amount swapped
+    function _swap(SwapData memory swapData)
+        internal
+        returns (uint256 actualIn, uint256 actualOut)
+    {
         if (swapData.amountIn == 0) {
-            return 0;
+            revert InvalidPaymentAmount();
         }
 
         (IAsset[] memory assets, uint8 woasIndex, uint8 smpIndex) = _getPoolAssets();
@@ -434,32 +440,54 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
             });
         }
 
-        receivedAmount = uint256(-deltas[tokenOutIndex]);
+        if (deltas[tokenInIndex] < 0 || deltas[tokenOutIndex] > 0) {
+            revert InvalidSwap("Unexpected balance changes");
+        }
+        actualIn = uint256(deltas[tokenInIndex]);
+        actualOut = uint256(-deltas[tokenOutIndex]);
+
+        if (actualIn > swapData.amountIn) {
+            revert InvalidSwap("Input token exceeded limit");
+        }
+        if (swapData.amountOut > 0 && actualOut != swapData.amountOut) {
+            revert InvalidSwap("Output token below required amount");
+        }
     }
 
-    /// @dev Swap non-SMP tokens to SMP via Balancer V2 pool
-    /// @param requiredSMP Amount of SMP required to obtain
-    /// @param tokenIn Token to swap from (NATIVE_OAS/WOAS/POAS)
-    /// @param amountIn Amount of token to swap
-    function _swapAnyOAStoSMP(uint256 requiredSMP, address tokenIn, uint256 amountIn)
+    /// @dev Swap payment tokens to SMP via WOAS-SMP liquidity pool
+    /// @param paymentToken Token to swap from (NATIVE_OAS/WOAS/POAS)
+    /// @param paymentAmount Payment token amount used for swap input
+    /// @param requiredSMP SMP token amount required for swap output
+    /// @return actualIn Actual input token amount used in swap
+    function _payWithSwapToSMP(address paymentToken, uint256 paymentAmount, uint256 requiredSMP)
         internal
-        returns (uint256 receivedSMP)
+        returns (uint256 actualIn)
     {
-        // Native OAS can be swapped directly, WOAS needs approval
-        if (_isWOAS(tokenIn)) {
-            IERC20(tokenIn).approve(_vault, amountIn);
+        uint256 actualOut;
+        if (_isSMP(paymentToken)) {
+            // Already SMP, no swap needed
+            (actualIn, actualOut) = (paymentAmount, paymentAmount);
+        } else {
+            if (_isWOAS(paymentToken)) {
+                IERC20(paymentToken).approve(_vault, paymentAmount);
+            }
+
+            // Execute swap: OAS/WOAS -> SMP
+            (actualIn, actualOut) = _swap(
+                SwapData({
+                    tokenIn: paymentToken, // Native OAS (including converted POAS) is passed as address(0)
+                    tokenOut: _smp,
+                    amountIn: paymentAmount,
+                    amountOut: requiredSMP, // Expect exactly this amount (GIVEN_OUT)
+                    recipient: address(this)
+                })
+            );
         }
 
-        // Execute swap through Balancer V2 WOAS-SMP pool
-        receivedSMP = _swap(
-            SwapData({
-                tokenIn: tokenIn,
-                tokenOut: _smp,
-                amountIn: amountIn,
-                amountOut: requiredSMP,
-                recipient: address(this)
-            })
-        );
+        // Verify we received the exact SMP amount needed for the purchase
+        if (actualOut != requiredSMP) {
+            revert InvalidPaymentAmount();
+        }
     }
 
     /// @dev Create BatchSwapStep for token swap
@@ -571,12 +599,12 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
         IERC20(_smp).approve(_vault, revenueSMP);
 
         // Execute swap: SMP -> native OAS
-        revenueOAS = _swap(
+        (, revenueOAS) = _swap(
             SwapData({
                 tokenIn: _smp,
                 tokenOut: NATIVE_OAS,
                 amountIn: revenueSMP,
-                amountOut: 0, // Accept any amount out
+                amountOut: 0, // Accept any amount out (GIVEN_IN)
                 recipient: _revenueRecipient // OAS sent directly to revenue recipient
             })
         );
@@ -587,12 +615,23 @@ contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable
     }
 
     /// @dev Mint NFTs to buyer for each contract in the array
-    /// @param nfts Array of NFT contracts to mint from
     /// @param to Address to receive the minted NFTs
-    function _mintNFTs(ISimpleP2EERC721[] calldata nfts, address to) internal {
+    /// @param nfts Array of NFT contracts to mint from
+    function _mintNFTs(address to, ISimpleP2EERC721[] calldata nfts) internal {
         uint256 length = nfts.length;
         for (uint256 i = 0; i < length; ++i) {
             nfts[i].mint(to);
+        }
+    }
+
+    /// @dev Refund excess payment tokens (native OAS/WOAS/POAS) using the same token type
+    function _refundAnyOAS(address to, address paymentToken, uint256 amount) internal {
+        if (_isNativeOAS(paymentToken)) {
+            Address.sendValue(payable(to), amount);
+        } else if (_isPOAS(paymentToken)) {
+            IPOASMinter(_poasMinter).mint{value: amount}(to, amount);
+        } else if (_isWOAS(paymentToken)) {
+            IERC20(paymentToken).transfer(to, amount);
         }
     }
 
