@@ -4,10 +4,10 @@ pragma solidity >=0.7.0;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
- * @title ISimpleP2EERC721
- * @dev Interface for ERC721 tokens that can be minted by SimpleP2E contract
- */
-interface ISimpleP2EERC721 is IERC721 {
+ * @title ISBTSaleERC721
+ * @dev Interface for ERC721 tokens that can be minted by SBTSale contract
+*/
+interface ISBTSaleERC721 is IERC721 {
     /**
      * @dev Mint a new NFT to the specified address
      * @param to Address to mint the NFT to

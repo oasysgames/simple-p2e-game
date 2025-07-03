@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
 
-import {ISimpleP2EERC721} from "./ISimpleP2EERC721.sol";
+import {ISBTSaleERC721} from "./ISBTSaleERC721.sol";
 
 /**
- * @title ISimpleP2E
+ * @title ISBTSale
  * @notice Contract for acquiring NFT assets by paying tokens.
  *
  * Basic Specifications
@@ -19,7 +19,7 @@ import {ISimpleP2EERC721} from "./ISimpleP2EERC721.sol";
  * - NFT pricing is based on SMP token with a current fixed price of 50 SMP
  *
  */
-interface ISimpleP2E {
+interface ISBTSale {
     // Errors
     error InvalidPaymentToken();
     error InvalidRecipient();
@@ -47,7 +47,7 @@ interface ISimpleP2E {
     /// @param lpRecipient Address receiving the LP tokens
     event Purchased(
         address buyer,
-        ISimpleP2EERC721[] nfts,
+        ISBTSaleERC721[] nfts,
         address paymentToken,
         uint256 actualAmount,
         uint256 refundAmount,
@@ -74,7 +74,7 @@ interface ISimpleP2E {
      * @param token Token address for payment (native OAS: 0x0, WOAS, POAS, or SMP)
      * @return price Total required token amount for all NFTs
      */
-    function queryPrice(ISimpleP2EERC721[] calldata nfts, address token)
+    function queryPrice(ISBTSaleERC721[] calldata nfts, address token)
         external
         returns (uint256 price);
 
@@ -107,7 +107,7 @@ interface ISimpleP2E {
      * @param amount Total payment amount in the specified token for all NFTs.
      *               Note: Obtain this value beforehand using queryPrice.
      */
-    function purchase(ISimpleP2EERC721[] calldata nfts, address token, uint256 amount)
+    function purchase(ISBTSaleERC721[] calldata nfts, address token, uint256 amount)
         external
         payable;
 

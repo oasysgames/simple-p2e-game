@@ -1,7 +1,7 @@
 /**
- * @fileoverview Test deployment utilities for SimpleP2E game contracts
+ * @fileoverview Test deployment utilities for SBTSale contracts
  * @description This module provides comprehensive helper functions for deploying and configuring
- *              the complete SimpleP2E ecosystem. It includes Balancer V2 infrastructure deployment,
+ *              the complete SBTSale ecosystem. It includes Balancer V2 infrastructure deployment,
  *              mock token creation, liquidity pool setup, and P2E game contract deployment.
  *
  *              Key Features:
@@ -9,7 +9,7 @@
  *              - Automated Balancer V2 ecosystem setup (Vault, Pool Factory, Helper)
  *              - Mock token deployment (SMP, POAS) with proper permissions
  *              - Liquidity pool creation and initial funding
- *              - SimpleP2E contract deployment with configurable parameters
+ *              - SBTSale contract deployment with configurable parameters
  *              - Mock NFT contract factory for testing scenarios
  */
 
@@ -161,7 +161,7 @@ export const deployBalancerV2 = async (params?: {
 };
 
 /**
- * @notice Deploys the complete SimpleP2E ecosystem including all dependencies
+ * @notice Deploys the complete SBTSale ecosystem including all dependencies
  * @dev Orchestrates the deployment of the entire P2E game testing environment:
  *
  *      Phase 1 - Infrastructure Setup:
@@ -173,8 +173,8 @@ export const deployBalancerV2 = async (params?: {
  *      - Configures zero swap fees for testing convenience
  *      - Retrieves pool address from creation events
  *
- *      Phase 3 - P2E Contract Deployment:
- *      - Deploys SimpleP2E contract with configurable parameters
+ *      Phase 3 - SBTSale Contract Deployment:
+ *      - Deploys SBTSale contract with configurable parameters
  *      - Sets up burn ratios, liquidity ratios, and price configurations
  *
  *      Phase 4 - Initial Liquidity Setup:
@@ -187,12 +187,12 @@ export const deployBalancerV2 = async (params?: {
  * @param params.initialLiquidity Initial liquidity amounts for the WOAS-SMP pool
  * @param params.initialLiquidity.woas Amount of WOAS to add to pool (in wei)
  * @param params.initialLiquidity.smp Amount of SMP to add to pool (in wei)
- * @param params.p2e SimpleP2E contract configuration parameters
- * @param params.p2e.lpRecipient Address to receive LP tokens from protocol operations
- * @param params.p2e.revenueRecipient Address to receive revenue from token sales
- * @param params.p2e.smpBasePrice Price per NFT in SMP tokens (default: 50 SMP)
- * @param params.p2e.smpBurnRatio Percentage of SMP to burn (default: 50% = 5000 basis points)
- * @param params.p2e.smpLiquidityRatio Percentage of SMP for liquidity (default: 40% = 4000 basis points)
+ * @param params.sbtSale SBTSale contract configuration parameters
+ * @param params.sbtSale.lpRecipient Address to receive LP tokens from protocol operations
+ * @param params.sbtSale.revenueRecipient Address to receive revenue from token sales
+ * @param params.sbtSale.smpBasePrice Price per NFT in SMP tokens (default: 50 SMP)
+ * @param params.sbtSale.smpBurnRatio Percentage of SMP to burn (default: 50% = 5000 basis points)
+ * @param params.sbtSale.smpLiquidityRatio Percentage of SMP for liquidity (default: 40% = 4000 basis points)
  *
  * @returns Comprehensive object containing all deployed contracts and utilities
  * @returns nativeOAS - Zero address representing native OAS in transactions
@@ -200,14 +200,14 @@ export const deployBalancerV2 = async (params?: {
  * @returns poas - Mock POAS token contract for testing payments
  * @returns smp - Mock SMP token contract for testing game economy
  * @returns pool - WOAS-SMP liquidity pool contract
- * @returns p2e - Deployed SimpleP2E game contract
+ * @returns sbtSale - Deployed SBTSale contract
  */
-export const deploySimpleP2E = async (params: {
+export const deploySBTSale = async (params: {
   initialLiquidity: {
     woas: bigint;
     smp: bigint;
   };
-  p2e: {
+  sbtSale: {
     lpRecipient: `0x${string}`;
     revenueRecipient: `0x${string}`;
     smpBasePrice?: bigint;
@@ -224,7 +224,7 @@ export const deploySimpleP2E = async (params: {
   poas: ContractTypesMap["MockPOAS"];
   smp: ContractTypesMap["MockSMP"];
   pool: ContractTypesMap["IVaultPool"];
-  p2e: ContractTypesMap["ISimpleP2E"];
+  sbtSale: ContractTypesMap["ISBTSale"];
 }> => {
   const { deployContract, getContractAt } = hre.viem;
   const { deployOpts, writeOpts } = await setupDeployer();
@@ -255,20 +255,20 @@ export const deploySimpleP2E = async (params: {
   const { pool: poolAddr } = (await bv2helper.getEvents.PoolCreated())[0].args;
   const pool = await getContractAt("IVaultPool", poolAddr!);
 
-  const p2eImpl = await deployContract(
-    "SimpleP2E",
+  const sbtSaleImpl = await deployContract(
+    "SBTSale",
     [
       poasMinter.address,
       pool.address,
-      params.p2e.lpRecipient,
-      params.p2e.revenueRecipient,
-      params.p2e?.smpBasePrice ?? parseEther("50"), // Default: 50 SMP per NFT
-      params.p2e?.smpBurnRatio ?? 5000n, // Default: 50% burn ratio
-      params.p2e?.smpLiquidityRatio ?? 4000n, // Default: 40% liquidity ratio
+      params.sbtSale.lpRecipient,
+      params.sbtSale.revenueRecipient,
+      params.sbtSale?.smpBasePrice ?? parseEther("50"), // Default: 50 SMP per NFT
+      params.sbtSale?.smpBurnRatio ?? 5000n, // Default: 50% burn ratio
+      params.sbtSale?.smpLiquidityRatio ?? 4000n, // Default: 40% liquidity ratio
     ],
     deployOpts
   );
-  const p2e = await getContractAt("ISimpleP2E", p2eImpl.address);
+  const sbtSale = await getContractAt("ISBTSale", sbtSaleImpl.address);
 
   // Mint WOAS by depositing ETH and approve Vault for liquidity provision
   await woas.write.deposit({
@@ -320,40 +320,35 @@ export const deploySimpleP2E = async (params: {
     poas,
     smp,
     pool,
-    p2e,
+    sbtSale,
   };
 };
 
 /**
- * @notice Deploys multiple mock NFT contracts for testing P2E scenarios
- * @dev Creates the specified number of MockSimpleP2EERC721 contracts with unique
+ * @notice Deploys multiple mock NFT contracts for testing sale scenarios
+ * @dev Creates the specified number of MockSBTSaleERC721 contracts with unique
  *      names and symbols. Each NFT contract is configured to only allow minting
- *      from the specified SimpleP2E contract, ensuring proper access control.
+ *      from the specified SBTSale contract, ensuring proper access control.
  *
  *      Generated contracts will have:
  *      - Sequential names: "NFT1", "NFT2", "NFT3", etc.
  *      - Sequential symbols: "NFT1", "NFT2", "NFT3", etc.
- *      - Minting permission restricted to the provided SimpleP2E address
+ *      - Minting permission restricted to the provided SBTSale address
  *
- * @param simpleP2E Address of the SimpleP2E contract that can mint these NFTs
+ * @param sbtSale Address of the SBTSale contract that can mint these NFTs
  * @param count Number of NFT contracts to deploy (must be > 0)
  * @returns Array of deployed NFT contract instances, indexed from 0
- *
- * @example
- * // Deploy 3 NFT contracts for testing
- * const nfts = await deployMockNFTs(p2eAddress, 3);
- * // Results: [NFT1, NFT2, NFT3] contracts
  */
 export const deployMockERC721 = async (
-  simpleP2E: `0x${string}`,
+  sbtSale: `0x${string}`,
   count: number
 ) => {
-  const nfts: ContractTypesMap["MockSimpleP2EERC721"][] = [];
+  const nfts: ContractTypesMap["MockSBTSaleERC721"][] = [];
   for (let i = 0; i < count; i++) {
-    const nft = await hre.viem.deployContract("MockSimpleP2EERC721", [
+    const nft = await hre.viem.deployContract("MockSBTSaleERC721", [
       `NFT${i + 1}`,
       `NFT${i + 1}`,
-      simpleP2E,
+      sbtSale,
     ]);
     nfts.push(nft);
   }
