@@ -1,0 +1,40 @@
+# The rpc url of the OASYS network
+export RPC_URL=https://rpc.testnet.oasys.games
+
+# The deployer private key
+export PRIVATE_KEY=""
+
+# --------------------------------------------
+# For SoulboundToken
+# ---------------------------------------------
+# The name of the soulbound token
+export SBT_NAME="Soulbound"
+# The symbol of the soulbound token
+export SBT_SYMBOL="SBT"
+# The base uri of the soulbound token
+export SBT_BASE_URI="https://token/"
+# The admin of the Soulbound Token
+# - The admin can upgrade the proxy.
+# - The admin can grant privileged access rights.
+# - The admin initially holds the minting role.
+export SBT_ADMIN="0x0000000000000000000000000000000000000000"
+
+# --------------------------------------------
+# For SimpleP2E
+# --------------------------------------------
+# The pOAS token address
+export P2E_POAS_MINTER="0x0000000000000000000000000000000000000000"
+# The address of the WOAS-SMP liquidity pool
+export P2E_LIQUIDITY_POOL="0x0000000000000000000000000000000000000000"
+# Recipient of LP tokens from protocol operations
+export P2E_LP_RECIPIENT="0x0000000000000000000000000000000000000000"
+# Recipient of protocol revenue (OAS)
+export P2E_REVENUE_RECIPIENT="0x0000000000000000000000000000000000000000"
+# Base price per NFT in SMP (wei)
+export P2E_SMP_BASE_PRICE=50000000000000000000
+# Ratio of SMP to burn (in basis points)
+export P2E_SMP_BURN_RATIO=5000
+# Ratio of SMP to provide as liquidity (in basis points)
+export P2E_SMP_LIQUIDITY_RATIO=4000
+# Proxy admin and initial owner of the contract
+export P2E_ADMIN="0x0000000000000000000000000000000000000000"
