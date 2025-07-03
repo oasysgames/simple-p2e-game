@@ -19,8 +19,9 @@ npm test
 ## Contracts
 - SimpleGame
   - The main contract that users interact with to play the game. (Not yet implemented.)
-- [SimpleP2E](./contracts/SimpleP2E.sol)
-  - A sales contract for minting SBTs (Soulbound Tokens).Supports payment in SMP Token, native OAS, Wrapped OAS, and pOAS.
+- [SBTSale](./contracts/SBTSale.sol)
+  - Contract used to sell SBTs (Soulbound Tokens). Supports payment in SMP Token,
+    native OAS, Wrapped OAS, and pOAS.
   - The price of each SBT is denominated in SMP tokens. When other tokens are used for payment, they are swapped to SMP via the Gaming DEX.
 - [SoulboundToken](./contracts/SoulboundToken.sol)
   - An SBT (Soulbound Token) contract representing "Cards" used in the game.

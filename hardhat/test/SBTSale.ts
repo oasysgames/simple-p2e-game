@@ -4,11 +4,11 @@ import { ContractTypesMap } from "hardhat/types/artifacts";
 import { Address, checksumAddress, parseEther } from "viem";
 
 import {
-  deploySimpleP2E,
+  deploySBTSale,
   deployMockERC721,
 } from "@oasysgames/simple-p2e-game-hardhat/test-utils";
 
-describe("TestSimpleP2E", () => {
+describe("TestSBTSale", () => {
   let p2e: ContractTypesMap["ISimpleP2E"];
   let woas: ContractTypesMap["IWOAS"];
   let poasMinter: ContractTypesMap["MockPOASMinter"];
@@ -38,8 +38,8 @@ describe("TestSimpleP2E", () => {
     lpRecipient = checksumAddress(lpRecipientWallet.account.address);
     revenueRecipient = checksumAddress(revenueRecipientWallet.account.address);
 
-    // Deploy SimpleP2E ecosystem with Balancer V2 pool and initial liquidity
-    ({ woas, poasMinter, poas, smp, p2e, nativeOAS } = await deploySimpleP2E({
+    // Deploy SBTSale ecosystem with Balancer V2 pool and initial liquidity
+    ({ woas, poasMinter, poas, smp, p2e, nativeOAS } = await deploySBTSale({
       initialLiquidity: {
         woas: parseEther("1000"), // Initial WOAS liquidity
         smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)

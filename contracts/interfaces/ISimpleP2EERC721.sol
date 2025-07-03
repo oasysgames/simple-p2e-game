@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title ISimpleP2EERC721
- * @dev Interface for ERC721 tokens that can be minted by SimpleP2E contract
+ * @dev Interface for ERC721 tokens that can be minted by SBTSale contract
  */
 interface ISimpleP2EERC721 is IERC721 {
     /**

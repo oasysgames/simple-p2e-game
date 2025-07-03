@@ -4,13 +4,13 @@ pragma solidity >=0.8.0;
 import {Script, console} from "forge-std/Script.sol";
 import {TransparentUpgradeableProxy} from
     "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {SimpleP2E} from "../contracts/SimpleP2E.sol";
+import {SBTSale} from "../contracts/SBTSale.sol";
 
 /**
- * @title DeploySimpleP2E
- * @notice Deploys the SimpleP2E implementation and proxy.
+ * @title DeploySBTSale
+ * @notice Deploys the SBTSale implementation and proxy.
  */
-contract DeploySimpleP2E is Script {
+contract DeploySBTSale is Script {
     function run() external returns (TransparentUpgradeableProxy proxy) {
         address poasMinter = vm.envAddress("P2E_POAS_MINTER");
         address liquidityPool = vm.envAddress("P2E_LIQUIDITY_POOL");
@@ -33,7 +33,7 @@ contract DeploySimpleP2E is Script {
 
         vm.startBroadcast();
 
-        SimpleP2E implementation = new SimpleP2E(
+        SBTSale implementation = new SBTSale(
             poasMinter,
             liquidityPool,
             lpRecipient,
@@ -46,13 +46,13 @@ contract DeploySimpleP2E is Script {
         proxy = new TransparentUpgradeableProxy(
             address(implementation),
             admin,
-            abi.encodeWithSelector(SimpleP2E.initialize.selector, admin)
+            abi.encodeWithSelector(SBTSale.initialize.selector, admin)
         );
 
         // print deployment result
         bytes32 ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
         console.log("--------------------------------");
-        console.log("SimpleP2E(implementation):", address(implementation));
+        console.log("SBTSale(implementation):", address(implementation));
         console.log("ProxyAdmin:", address(uint160(uint256(vm.load(address(proxy), ADMIN_SLOT)))));
         console.log("Proxy:", address(proxy));
 
