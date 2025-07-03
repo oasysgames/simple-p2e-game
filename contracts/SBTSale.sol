@@ -26,11 +26,11 @@ import {IPOAS} from "./interfaces/IPOAS.sol";
 import {IPOASMinter} from "./interfaces/IPOASMinter.sol";
 
 /**
- * @title SimpleP2E
- * @dev Play-to-Earn game contract that accepts payments in multiple token types
- *      Implements complex payment flow with SMP burning, liquidity provision, and revenue distribution
+ * @title SBTSale
+ * @dev Contract for selling SBTs using multiple payment tokens. Handles SMP burning,
+ *      liquidity provision and revenue distribution.
  */
-contract SimpleP2E is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract SBTSale is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @dev Data structure for swap operation

@@ -20,7 +20,7 @@ export SBT_BASE_URI="https://token/"
 export SBT_ADMIN="0x0000000000000000000000000000000000000000"
 
 # --------------------------------------------
-# For SimpleP2E
+# For SBTSale
 # --------------------------------------------
 # The pOAS token address
 export P2E_POAS_MINTER="0x0000000000000000000000000000000000000000"

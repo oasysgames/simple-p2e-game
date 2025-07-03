@@ -10,7 +10,7 @@ import {IERC20} from "@balancer-labs/v2-interfaces/contracts/solidity-utils/open
 import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 // Local contracts and interfaces
-import {SimpleP2E} from "../contracts/SimpleP2E.sol";
+import {SBTSale} from "../contracts/SBTSale.sol";
 import {ISimpleP2E} from "../contracts/interfaces/ISimpleP2E.sol";
 import {IVaultPool} from "../contracts/interfaces/IVaultPool.sol";
 import {ISimpleP2EERC721} from "../contracts/interfaces/ISimpleP2EERC721.sol";
@@ -29,7 +29,7 @@ import {MockSMP} from "../contracts/test-utils/MockSMPv8.sol";
 import {MockPOASMinter} from "../contracts/test-utils/MockPOASMinter.sol";
 import {MockSimpleP2EERC721} from "../contracts/test-utils/MockSimpleP2EERC721.sol";
 
-contract SimpleP2ETest is Test {
+contract SBTSaleTest is Test {
     ISimpleP2E p2e;
     address p2eAddr;
 
@@ -119,7 +119,7 @@ contract SimpleP2ETest is Test {
             })
         );
 
-        SimpleP2E _p2e = new SimpleP2E({
+        SBTSale _sale = new SBTSale({
             poasMinter: address(poasMinter),
             liquidityPool: address(pool),
             lpRecipient: lpRecipient,
@@ -129,7 +129,7 @@ contract SimpleP2ETest is Test {
             smpLiquidityRatio: 4000
         });
 
-        p2eAddr = address(_p2e);
+        p2eAddr = address(_sale);
         p2e = ISimpleP2E(p2eAddr);
         woas = IERC20(address(_woas));
         poas = IPOAS(poasMinter.poas());

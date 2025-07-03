@@ -14,14 +14,14 @@ import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 import {IBasePoolFactory} from
     "@balancer-labs/v2-interfaces/contracts/pool-utils/IBasePoolFactory.sol";
 
-// SimpleP2E
+// SBTSale
 import {IVaultPool} from "../interfaces/IVaultPool.sol";
 import {IPOAS} from "../interfaces/IPOAS.sol";
 import {IPOASMinter} from "../interfaces/IPOASMinter.sol";
 import {ISimpleP2E} from "../interfaces/ISimpleP2E.sol";
 import {IWOAS} from "../interfaces/IWOAS.sol";
 import {ISimpleP2EERC721} from "../interfaces/ISimpleP2EERC721.sol";
-import {SimpleP2E} from "../SimpleP2E.sol";
+import {SBTSale} from "../SBTSale.sol";
 
 // Test utilities
 import {IBalancerV2Helper} from "./interfaces/IBalancerV2Helper.sol";

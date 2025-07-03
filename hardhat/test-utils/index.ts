@@ -1,7 +1,7 @@
 /**
- * @fileoverview Test deployment utilities for SimpleP2E game contracts
+ * @fileoverview Test deployment utilities for SBTSale contracts
  * @description This module provides comprehensive helper functions for deploying and configuring
- *              the complete SimpleP2E ecosystem. It includes Balancer V2 infrastructure deployment,
+ *              the complete SBTSale ecosystem. It includes Balancer V2 infrastructure deployment,
  *              mock token creation, liquidity pool setup, and P2E game contract deployment.
  *
  *              Key Features:
@@ -9,7 +9,7 @@
  *              - Automated Balancer V2 ecosystem setup (Vault, Pool Factory, Helper)
  *              - Mock token deployment (SMP, POAS) with proper permissions
  *              - Liquidity pool creation and initial funding
- *              - SimpleP2E contract deployment with configurable parameters
+ *              - SBTSale contract deployment with configurable parameters
  *              - Mock NFT contract factory for testing scenarios
  */
 
@@ -161,7 +161,7 @@ export const deployBalancerV2 = async (params?: {
 };
 
 /**
- * @notice Deploys the complete SimpleP2E ecosystem including all dependencies
+ * @notice Deploys the complete SBTSale ecosystem including all dependencies
  * @dev Orchestrates the deployment of the entire P2E game testing environment:
  *
  *      Phase 1 - Infrastructure Setup:
@@ -174,7 +174,7 @@ export const deployBalancerV2 = async (params?: {
  *      - Retrieves pool address from creation events
  *
  *      Phase 3 - P2E Contract Deployment:
- *      - Deploys SimpleP2E contract with configurable parameters
+ *      - Deploys SBTSale contract with configurable parameters
  *      - Sets up burn ratios, liquidity ratios, and price configurations
  *
  *      Phase 4 - Initial Liquidity Setup:
@@ -187,7 +187,7 @@ export const deployBalancerV2 = async (params?: {
  * @param params.initialLiquidity Initial liquidity amounts for the WOAS-SMP pool
  * @param params.initialLiquidity.woas Amount of WOAS to add to pool (in wei)
  * @param params.initialLiquidity.smp Amount of SMP to add to pool (in wei)
- * @param params.p2e SimpleP2E contract configuration parameters
+ * @param params.p2e SBTSale contract configuration parameters
  * @param params.p2e.lpRecipient Address to receive LP tokens from protocol operations
  * @param params.p2e.revenueRecipient Address to receive revenue from token sales
  * @param params.p2e.smpBasePrice Price per NFT in SMP tokens (default: 50 SMP)
@@ -200,9 +200,9 @@ export const deployBalancerV2 = async (params?: {
  * @returns poas - Mock POAS token contract for testing payments
  * @returns smp - Mock SMP token contract for testing game economy
  * @returns pool - WOAS-SMP liquidity pool contract
- * @returns p2e - Deployed SimpleP2E game contract
- */
-export const deploySimpleP2E = async (params: {
+ * @returns p2e - Deployed SBTSale contract
+*/
+export const deploySBTSale = async (params: {
   initialLiquidity: {
     woas: bigint;
     smp: bigint;
@@ -256,7 +256,7 @@ export const deploySimpleP2E = async (params: {
   const pool = await getContractAt("IVaultPool", poolAddr!);
 
   const p2eImpl = await deployContract(
-    "SimpleP2E",
+    "SBTSale",
     [
       poasMinter.address,
       pool.address,
@@ -325,17 +325,17 @@ export const deploySimpleP2E = async (params: {
 };
 
 /**
- * @notice Deploys multiple mock NFT contracts for testing P2E scenarios
+ * @notice Deploys multiple mock NFT contracts for testing sale scenarios
  * @dev Creates the specified number of MockSimpleP2EERC721 contracts with unique
  *      names and symbols. Each NFT contract is configured to only allow minting
- *      from the specified SimpleP2E contract, ensuring proper access control.
+ *      from the specified SBTSale contract, ensuring proper access control.
  *
  *      Generated contracts will have:
  *      - Sequential names: "NFT1", "NFT2", "NFT3", etc.
  *      - Sequential symbols: "NFT1", "NFT2", "NFT3", etc.
- *      - Minting permission restricted to the provided SimpleP2E address
+ *      - Minting permission restricted to the provided SBTSale address
  *
- * @param simpleP2E Address of the SimpleP2E contract that can mint these NFTs
+ * @param simpleP2E Address of the SBTSale contract that can mint these NFTs
  * @param count Number of NFT contracts to deploy (must be > 0)
  * @returns Array of deployed NFT contract instances, indexed from 0
  *
