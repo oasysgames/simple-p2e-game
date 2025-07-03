@@ -12,7 +12,7 @@ import {SimpleP2E} from "../contracts/SimpleP2E.sol";
  */
 contract DeploySimpleP2E is Script {
     function run() external returns (TransparentUpgradeableProxy proxy) {
-        address poas = vm.envAddress("P2E_POAS");
+        address poasMinter = vm.envAddress("P2E_POAS_MINTER");
         address liquidityPool = vm.envAddress("P2E_LIQUIDITY_POOL");
         address lpRecipient = vm.envAddress("P2E_LP_RECIPIENT");
         address revenueRecipient = vm.envAddress("P2E_REVENUE_RECIPIENT");
@@ -22,7 +22,7 @@ contract DeploySimpleP2E is Script {
         address admin = vm.envAddress("P2E_ADMIN");
 
         // print deployment config
-        console.log("pOAS:", poas);
+        console.log("POAS Minter:", poasMinter);
         console.log("Liquidity Pool:", liquidityPool);
         console.log("LP Recipient:", lpRecipient);
         console.log("Revenue Recipient:", revenueRecipient);
@@ -34,7 +34,7 @@ contract DeploySimpleP2E is Script {
         vm.startBroadcast();
 
         SimpleP2E implementation = new SimpleP2E(
-            poas,
+            poasMinter,
             liquidityPool,
             lpRecipient,
             revenueRecipient,

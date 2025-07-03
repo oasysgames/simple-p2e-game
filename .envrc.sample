@@ -23,7 +23,7 @@ export SBT_ADMIN="0x0000000000000000000000000000000000000000"
 # For SimpleP2E
 # --------------------------------------------
 # The pOAS token address
-export P2E_POAS="0x0000000000000000000000000000000000000000"
+export P2E_POAS_MINTER="0x0000000000000000000000000000000000000000"
 # The address of the WOAS-SMP liquidity pool
 export P2E_LIQUIDITY_POOL="0x0000000000000000000000000000000000000000"
 # Recipient of LP tokens from protocol operations

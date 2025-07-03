@@ -147,13 +147,18 @@ contract SoulboundToken is
     /// @dev Assigns a unique token ID by incrementing _nextTokenId and retrying if taken
     function _assignTokenId() internal virtual returns (uint256 tokenId) {
         // Prevent infinite loops
-        // NOTE: You can change this value by upgrading this contract
-        uint256 maxAttempts = 100;
-        for (uint256 i = 0; i < maxAttempts; i++) {
-            tokenId = _nextTokenId++;
-            if (_ownerOf(tokenId) == address(0)) {
-                // Token ID is available
-                return tokenId;
+        uint256 currentTokenId = _nextTokenId;
+        uint256 maxAttempts = 1024; // NOTE: You can change this value by upgrading this contract
+        uint256 i = 0;
+        while (i < maxAttempts) {
+            if (_ownerOf(currentTokenId) == address(0)) {
+                // Token ID is available, update storage and return
+                _nextTokenId = currentTokenId + 1;
+                return currentTokenId;
+            }
+            unchecked {
+                ++currentTokenId;
+                ++i;
             }
         }
         revert FailedToAssignTokenId();

@@ -164,17 +164,18 @@ contract SoulboundTokenTest is Test {
         vm.prank(owner);
         sbt.mint(user);
 
-        // second mint token id 1
-        vm.prank(owner);
-        sbt.safeMint(user, 1, "");
+        // second mint token id 1, 2, 3
+        for (uint256 i = 1; i < 4; ++i) {
+            vm.prank(owner);
+            sbt.safeMint(user, i, "");
+        }
 
-        // third mint token id 2
+        // third mint token id 4
         vm.prank(owner);
-        uint256 tokenId = sbt.mint(user);
-        assertEq(tokenId, 2);
-        assertEq(sbt.ownerOf(tokenId), user);
-        assertEq(sbt.mintTimeOf(tokenId), block.timestamp);
-        assertEq(sbt.balanceOf(user), 3);
+        sbt.mint(user);
+        assertEq(sbt.ownerOf(4), user);
+        assertEq(sbt.mintTimeOf(4), block.timestamp);
+        assertEq(sbt.balanceOf(user), 5);
     }
 
     function test_upgrade() public {
