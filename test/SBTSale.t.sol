@@ -11,9 +11,9 @@ import {IVault} from "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 // Local contracts and interfaces
 import {SBTSale} from "../contracts/SBTSale.sol";
-import {ISimpleP2E} from "../contracts/interfaces/ISimpleP2E.sol";
+import {ISBTSale} from "../contracts/interfaces/ISBTSale.sol";
 import {IVaultPool} from "../contracts/interfaces/IVaultPool.sol";
-import {ISimpleP2EERC721} from "../contracts/interfaces/ISimpleP2EERC721.sol";
+import {ISBTSaleERC721} from "../contracts/interfaces/ISBTSaleERC721.sol";
 import {IPOAS} from "../contracts/interfaces/IPOAS.sol";
 import {IPOASMinter} from "../contracts/interfaces/IPOASMinter.sol";
 import {IWOAS} from "../contracts/interfaces/IWOAS.sol";
@@ -27,10 +27,10 @@ import {BalancerV2HelperDeployer} from
 import {IBalancerV2Helper} from "../contracts/test-utils/interfaces/IBalancerV2Helper.sol";
 import {MockSMP} from "../contracts/test-utils/MockSMPv8.sol";
 import {MockPOASMinter} from "../contracts/test-utils/MockPOASMinter.sol";
-import {MockSimpleP2EERC721} from "../contracts/test-utils/MockSimpleP2EERC721.sol";
+import {MockSBTSaleERC721} from "../contracts/test-utils/MockSBTSaleERC721.sol";
 
 contract SBTSaleTest is Test {
-    ISimpleP2E p2e;
+    ISBTSale p2e;
     address p2eAddr;
 
     IBalancerV2Helper bv2helper;
@@ -54,7 +54,7 @@ contract SBTSaleTest is Test {
     uint256 smpBasePrice = 50 ether;
     uint256 userInitialBalance = smpBasePrice * 10;
 
-    ISimpleP2EERC721[] triNFTs;
+    ISBTSaleERC721[] triNFTs;
     uint256 triNFT_SMP_Price = 150 ether; // 3 NFTs × 50 SMP
     uint256 triNFT_SMP_Burn = 75 ether; // 50% of 150 SMP
     uint256 triNFT_SMP_Liquidity = 60 ether; // 40% of 150 SMP
@@ -130,7 +130,7 @@ contract SBTSaleTest is Test {
         });
 
         p2eAddr = address(_sale);
-        p2e = ISimpleP2E(p2eAddr);
+        p2e = ISBTSale(p2eAddr);
         woas = IERC20(address(_woas));
         poas = IPOAS(poasMinter.poas());
         smp = IERC20(address(_smp));
@@ -160,11 +160,11 @@ contract SBTSaleTest is Test {
         _smp.approve(address(vault), initialSMPLiquidity);
         bv2helper.addInitialLiquidity(pool, deployer, deployer, tokens, amounts);
 
-        // Deploy MockSimpleP2EERC721 contracts
-        triNFTs = new ISimpleP2EERC721[](3);
-        triNFTs[0] = new MockSimpleP2EERC721("NFT1", "NFT1", p2eAddr);
-        triNFTs[1] = new MockSimpleP2EERC721("NFT2", "NFT2", p2eAddr);
-        triNFTs[2] = new MockSimpleP2EERC721("NFT3", "NFT3", p2eAddr);
+        // Deploy MockSBTSaleERC721 contracts
+        triNFTs = new ISBTSaleERC721[](3);
+        triNFTs[0] = new MockSBTSaleERC721("NFT1", "NFT1", p2eAddr);
+        triNFTs[1] = new MockSBTSaleERC721("NFT2", "NFT2", p2eAddr);
+        triNFTs[2] = new MockSBTSaleERC721("NFT3", "NFT3", p2eAddr);
 
         vm.stopPrank();
 
@@ -452,9 +452,9 @@ contract SBTSaleTest is Test {
         smp.approve(p2eAddr, actualAmount + 1);
 
         // Excess or shortage is not allowed for SMP payments
-        vm.expectRevert(ISimpleP2E.InvalidPaymentAmount.selector);
+        vm.expectRevert(ISBTSale.InvalidPaymentAmount.selector);
         p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(smp), actualAmount + 1);
-        vm.expectRevert(ISimpleP2E.InvalidPaymentAmount.selector);
+        vm.expectRevert(ISBTSale.InvalidPaymentAmount.selector);
         p2e.purchase{gas: purchaseGasLimit}(triNFTs, address(smp), actualAmount - 1);
 
         // Set up event expectations (no initial swap, direct SMP processing)
@@ -599,7 +599,7 @@ contract SBTSaleTest is Test {
         uint256 expectedRevenueOAS
     ) internal {
         vm.expectEmit(p2eAddr);
-        emit ISimpleP2E.Purchased(
+        emit ISBTSale.Purchased(
             buyer,
             triNFTs,
             paymentToken,

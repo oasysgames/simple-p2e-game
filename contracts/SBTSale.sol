@@ -19,9 +19,9 @@ import {WeightedPoolUserData} from
     "@balancer-labs/v2-interfaces/contracts/pool-weighted/WeightedPoolUserData.sol";
 
 // Local interfaces
-import {ISimpleP2E} from "./interfaces/ISimpleP2E.sol";
+import {ISBTSale} from "./interfaces/ISBTSale.sol";
 import {IVaultPool} from "./interfaces/IVaultPool.sol";
-import {ISimpleP2EERC721} from "./interfaces/ISimpleP2EERC721.sol";
+import {ISBTSaleERC721} from "./interfaces/ISBTSaleERC721.sol";
 import {IPOAS} from "./interfaces/IPOAS.sol";
 import {IPOASMinter} from "./interfaces/IPOASMinter.sol";
 
@@ -30,7 +30,7 @@ import {IPOASMinter} from "./interfaces/IPOASMinter.sol";
  * @dev Contract for selling SBTs using multiple payment tokens. Handles SMP burning,
  *      liquidity provision and revenue distribution.
  */
-contract SBTSale is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract SBTSale is ISBTSale, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @dev Data structure for swap operation
@@ -121,55 +121,55 @@ contract SBTSale is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         __ReentrancyGuard_init();
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getWOAS() external view returns (address poas) {
         return _woas;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getPOAS() external view returns (address poas) {
         return IPOASMinter(_poasMinter).poas();
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getSMP() external view returns (address smp) {
         return _smp;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getPOASMinter() external view returns (address poasMinter) {
         return _poasMinter;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getLiquidityPool() external view returns (address pool) {
         return _liquidityPool;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getLPRecipient() external view returns (address recipient) {
         return _lpRecipient;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getRevenueRecipient() external view returns (address recipient) {
         return _revenueRecipient;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getSMPBurnRatio() external view returns (uint256 burnRatio) {
         return _smpBurnRatio;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     function getSMPLiquidityRatio() external view returns (uint256 liquidityRatio) {
         return _smpLiquidityRatio;
     }
 
-    /// @inheritdoc ISimpleP2E
+    /// @inheritdoc ISBTSale
     /// @dev Note: This method is not a 'view' function due to Balancer V2 design constraints.
     ///            Therefore, callers must explicitly use `eth_call` to call it.
-    function queryPrice(ISimpleP2EERC721[] calldata nfts, address paymentToken)
+    function queryPrice(ISBTSaleERC721[] calldata nfts, address paymentToken)
         public
         returns (uint256 price)
     {
@@ -188,8 +188,8 @@ contract SBTSale is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
         return _isSMP(paymentToken) ? smpPrice : _getRequiredOASFromLP(paymentToken, smpPrice);
     }
 
-    /// @inheritdoc ISimpleP2E
-    function purchase(ISimpleP2EERC721[] calldata nfts, address paymentToken, uint256 amount)
+    /// @inheritdoc ISBTSale
+    function purchase(ISBTSaleERC721[] calldata nfts, address paymentToken, uint256 amount)
         external
         payable
         nonReentrant
@@ -316,7 +316,7 @@ contract SBTSale is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /// @dev Get the total SMP price for a list of NFTs
     /// @param nfts Array of NFT contracts to calculate price for
     /// @return totalSMPPrice Total SMP required (nfts.length × base price)
-    function _getTotalSMPPrice(ISimpleP2EERC721[] calldata nfts)
+    function _getTotalSMPPrice(ISBTSaleERC721[] calldata nfts)
         internal
         view
         returns (uint256 totalSMPPrice)
@@ -617,7 +617,7 @@ contract SBTSale is ISimpleP2E, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /// @dev Mint NFTs to buyer for each contract in the array
     /// @param to Address to receive the minted NFTs
     /// @param nfts Array of NFT contracts to mint from
-    function _mintNFTs(address to, ISimpleP2EERC721[] calldata nfts) internal {
+    function _mintNFTs(address to, ISBTSaleERC721[] calldata nfts) internal {
         uint256 length = nfts.length;
         for (uint256 i = 0; i < length; ++i) {
             nfts[i].mint(to);

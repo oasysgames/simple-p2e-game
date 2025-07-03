@@ -18,9 +18,9 @@ import {IBasePoolFactory} from
 import {IVaultPool} from "../interfaces/IVaultPool.sol";
 import {IPOAS} from "../interfaces/IPOAS.sol";
 import {IPOASMinter} from "../interfaces/IPOASMinter.sol";
-import {ISimpleP2E} from "../interfaces/ISimpleP2E.sol";
+import {ISBTSale} from "../interfaces/ISBTSale.sol";
 import {IWOAS} from "../interfaces/IWOAS.sol";
-import {ISimpleP2EERC721} from "../interfaces/ISimpleP2EERC721.sol";
+import {ISBTSaleERC721} from "../interfaces/ISBTSaleERC721.sol";
 import {SBTSale} from "../SBTSale.sol";
 
 // Test utilities
@@ -30,7 +30,7 @@ import {IWeightedPoolFactory} from "./interfaces/IWeightedPoolFactory.sol";
 import {VaultDeployer, IMinimumAuthorizer} from "./deployers/VaultDeployer.sol";
 import {WeightedPoolFactoryDeployer} from "./deployers/WeightedPoolFactoryDeployer.sol";
 import {BalancerV2HelperDeployer} from "./deployers/BalancerV2HelperDeployer.sol";
-import {MockSimpleP2EERC721} from "./MockSimpleP2EERC721.sol";
+import {MockSBTSaleERC721} from "./MockSBTSaleERC721.sol";
 import {MockPOAS} from "./MockPOAS.sol";
 import {MockPOASMinter} from "./MockPOASMinter.sol";
 import {MockSMP} from "./MockSMPv8.sol";
