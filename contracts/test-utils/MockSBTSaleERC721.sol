@@ -15,18 +15,18 @@ contract MockSBTSaleERC721 is ISBTSaleERC721, ERC721 {
     uint256 private _nextTokenId;
 
     /// @notice Address of the SBTSale contract that is allowed to mint tokens
-    address public immutable simpleP2E;
+    address public immutable sbtSale;
 
     /**
      * @notice Constructor to initialize the NFT collection
      * @param name The name of the NFT collection
      * @param symbol The symbol of the NFT collection
-     * @param _simpleP2E Address of the SBTSale contract that can mint tokens
+     * @param _sbtSale Address of the SBTSale contract that can mint tokens
      */
-    constructor(string memory name, string memory symbol, address _simpleP2E)
+    constructor(string memory name, string memory symbol, address _sbtSale)
         ERC721(name, symbol)
     {
-        simpleP2E = _simpleP2E;
+        sbtSale = _sbtSale;
     }
 
     /**
@@ -36,7 +36,7 @@ contract MockSBTSaleERC721 is ISBTSaleERC721, ERC721 {
      * @return tokenId The ID of the newly minted token
      */
     function mint(address to) external returns (uint256 tokenId) {
-        require(msg.sender == simpleP2E, "Only SBTSale can mint");
+        require(msg.sender == sbtSale, "Only SBTSale can mint");
 
         // Generate unique token ID and increment counter
         tokenId = _nextTokenId++;

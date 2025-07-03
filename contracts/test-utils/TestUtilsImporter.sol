@@ -22,6 +22,7 @@ import {ISBTSale} from "../interfaces/ISBTSale.sol";
 import {IWOAS} from "../interfaces/IWOAS.sol";
 import {ISBTSaleERC721} from "../interfaces/ISBTSaleERC721.sol";
 import {SBTSale} from "../SBTSale.sol";
+import {SoulboundToken} from "../SoulboundToken.sol";
 
 // Test utilities
 import {IBalancerV2Helper} from "./interfaces/IBalancerV2Helper.sol";
