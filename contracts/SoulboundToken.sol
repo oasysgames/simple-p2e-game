@@ -4,6 +4,8 @@ pragma solidity >=0.8.0;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC721Upgradeable} from
     "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {ERC721BurnableUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721BurnableUpgradeable.sol";
 import {AccessControlUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -19,6 +21,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 contract SoulboundToken is
     Initializable,
     ERC721Upgradeable,
+    ERC721BurnableUpgradeable,
     AccessControlUpgradeable,
     ISimpleP2EERC721
 {
@@ -27,9 +30,6 @@ contract SoulboundToken is
 
     /// @dev Revert when attempting a prohibited transfer or approval
     error Soulbound();
-
-    /// @dev Error for unauthorized actions
-    error Unauthorized();
 
     /// @dev Error for failed to assign token ID
     error FailedToAssignTokenId();
@@ -70,6 +70,7 @@ contract SoulboundToken is
         }
 
         __ERC721_init(name_, symbol_);
+        __ERC721Burnable_init();
         __AccessControl_init();
 
         _baseTokenURI = baseURI_;
@@ -107,11 +108,8 @@ contract SoulboundToken is
 
     /// @notice Burn an existing SBT
     /// @param tokenId Token id to burn
-    function burn(uint256 tokenId) external {
-        if (msg.sender != ownerOf(tokenId)) {
-            revert Unauthorized();
-        }
-        _burn(tokenId);
+    function burn(uint256 tokenId) public override(ERC721BurnableUpgradeable) {
+        super.burn(tokenId);
         delete _mintedAt[tokenId];
     }
 

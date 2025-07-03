@@ -4,6 +4,7 @@ pragma solidity >=0.8.0;
 import {Test, console} from "forge-std/Test.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {TransparentUpgradeableProxy} from
     "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -103,7 +104,9 @@ contract SoulboundTokenTest is Test {
     function test_burn_unauthorized() public {
         vm.prank(owner);
         sbt.safeMint(user, 1, "");
-        vm.expectRevert(SoulboundToken.Unauthorized.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, owner, 1)
+        );
         vm.prank(owner);
         sbt.burn(1);
     }
