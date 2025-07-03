@@ -13,10 +13,15 @@ contract MockPOAS is ERC20Burnable {
 
     error POASPaymentError(string message);
 
-    constructor() ERC20("pOAS", "POAS") {}
+    address public immutable mockMinter;
+
+    constructor(address _mockMinter) ERC20("pOAS", "POAS") {
+        mockMinter = _mockMinter;
+    }
 
     function mint(address account, uint256 amount) external payable {
-        require(msg.value == amount, "MockPOAS: msg.value mismatch");
+        // Note: The actual code does not validate msg.value
+        require(msg.sender == mockMinter, "MockPOAS: Invalid minter");
         _mint(account, amount);
     }
 

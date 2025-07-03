@@ -220,6 +220,7 @@ export const deploySimpleP2E = async (params: {
   bv2helper: ContractTypesMap["IBalancerV2Helper"];
   woas: ContractTypesMap["IWOAS"];
   nativeOAS: Address;
+  poasMinter: ContractTypesMap["MockPOASMinter"];
   poas: ContractTypesMap["MockPOAS"];
   smp: ContractTypesMap["MockSMP"];
   pool: ContractTypesMap["IVaultPool"];
@@ -232,7 +233,8 @@ export const deploySimpleP2E = async (params: {
   // Deploy mock tokens for testing
   const nativeOAS = zeroAddress; // Native OAS represented as zero address
   const smp = await deployContract("MockSMP", [], deployOpts);
-  const poas = await deployContract("MockPOAS", [], deployOpts);
+  const poasMinter = await deployContract("MockPOASMinter", [], deployOpts);
+  const poas = await getContractAt("MockPOAS", await poasMinter.read.poas());
 
   // Create WOAS-SMP weighted pool with 50/50 allocation
   await bv2helper.write.createPool(
@@ -256,7 +258,7 @@ export const deploySimpleP2E = async (params: {
   const p2eImpl = await deployContract(
     "SimpleP2E",
     [
-      poas.address,
+      poasMinter.address,
       pool.address,
       params.p2e.lpRecipient,
       params.p2e.revenueRecipient,
@@ -314,6 +316,7 @@ export const deploySimpleP2E = async (params: {
     bv2helper,
     woas,
     nativeOAS,
+    poasMinter,
     poas,
     smp,
     pool,

@@ -11,6 +11,7 @@ import {
 describe("TestSimpleP2E", () => {
   let p2e: ContractTypesMap["ISimpleP2E"];
   let woas: ContractTypesMap["IWOAS"];
+  let poasMinter: ContractTypesMap["MockPOASMinter"];
   let poas: ContractTypesMap["MockPOAS"];
   let smp: ContractTypesMap["MockSMP"];
   let nfts: ContractTypesMap["MockSimpleP2EERC721"][];
@@ -38,7 +39,7 @@ describe("TestSimpleP2E", () => {
     revenueRecipient = checksumAddress(revenueRecipientWallet.account.address);
 
     // Deploy SimpleP2E ecosystem with Balancer V2 pool and initial liquidity
-    ({ woas, poas, smp, p2e, nativeOAS } = await deploySimpleP2E({
+    ({ woas, poasMinter, poas, smp, p2e, nativeOAS } = await deploySimpleP2E({
       initialLiquidity: {
         woas: parseEther("1000"), // Initial WOAS liquidity
         smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)
@@ -58,7 +59,7 @@ describe("TestSimpleP2E", () => {
     await woas.write.deposit({ account: buyer, value: parseEther("1000") });
 
     // POAS: Mint POAS tokens (requires native OAS collateral)
-    await poas.write.mint([buyer, parseEther("1000")], {
+    await poasMinter.write.mint([buyer, parseEther("1000")], {
       account: buyer,
       value: parseEther("1000"),
     });
