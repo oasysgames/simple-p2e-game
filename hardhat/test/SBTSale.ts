@@ -9,7 +9,7 @@ import {
 } from "@oasysgames/simple-p2e-game-hardhat/test-utils";
 
 describe("TestSBTSale", () => {
-  let p2e: ContractTypesMap["ISBTSale"];
+  let sbtSale: ContractTypesMap["ISBTSale"];
   let woas: ContractTypesMap["IWOAS"];
   let poasMinter: ContractTypesMap["MockPOASMinter"];
   let poas: ContractTypesMap["MockPOAS"];
@@ -39,19 +39,19 @@ describe("TestSBTSale", () => {
     revenueRecipient = checksumAddress(revenueRecipientWallet.account.address);
 
     // Deploy SBTSale ecosystem with Balancer V2 pool and initial liquidity
-    ({ woas, poasMinter, poas, smp, p2e, nativeOAS } = await deploySBTSale({
+    ({ woas, poasMinter, poas, smp, sbtSale, nativeOAS } = await deploySBTSale({
       initialLiquidity: {
         woas: parseEther("1000"), // Initial WOAS liquidity
         smp: parseEther("4000"), // Initial SMP liquidity (4:1 ratio)
       },
-      p2e: {
+      sbtSale: {
         lpRecipient: lpRecipient, // LP token recipient
         revenueRecipient: revenueRecipient, // Revenue recipient
       },
     }));
 
     // Deploy mock NFT contracts for P2E game testing
-    nfts = await deployMockERC721(p2e.address, 3);
+    nfts = await deployMockERC721(sbtSale.address, 3);
     nftAddrs = nfts.map((x) => x.address);
 
     // Mint tokens to the buyer for testing different payment methods
@@ -70,9 +70,10 @@ describe("TestSBTSale", () => {
 
   it("should purchase NFTs using native OAS", async () => {
     // Query price and execute purchase with native OAS payment
-    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, nativeOAS]))
-      .result;
-    await p2e.write.purchase([nftAddrs, nativeOAS, totalPrice], {
+    const totalPrice = (
+      await sbtSale.simulate.queryPrice([nftAddrs, nativeOAS])
+    ).result;
+    await sbtSale.write.purchase([nftAddrs, nativeOAS, totalPrice], {
       account: buyer,
       value: totalPrice,
     });
@@ -81,10 +82,11 @@ describe("TestSBTSale", () => {
 
   it("should purchase NFTs using WOAS", async () => {
     // Query price, approve WOAS spending, and execute purchase
-    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, woas.address]))
-      .result;
-    await woas.write.approve([p2e.address, totalPrice], { account: buyer });
-    await p2e.write.purchase([nftAddrs, woas.address, totalPrice], {
+    const totalPrice = (
+      await sbtSale.simulate.queryPrice([nftAddrs, woas.address])
+    ).result;
+    await woas.write.approve([sbtSale.address, totalPrice], { account: buyer });
+    await sbtSale.write.purchase([nftAddrs, woas.address, totalPrice], {
       account: buyer,
     });
     await expectNFTsOwner(1);
@@ -92,10 +94,11 @@ describe("TestSBTSale", () => {
 
   it("should purchase NFTs using POAS", async () => {
     // Query price, approve POAS spending, and execute purchase
-    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, poas.address]))
-      .result;
-    await poas.write.approve([p2e.address, totalPrice], { account: buyer });
-    await p2e.write.purchase([nftAddrs, poas.address, totalPrice], {
+    const totalPrice = (
+      await sbtSale.simulate.queryPrice([nftAddrs, poas.address])
+    ).result;
+    await poas.write.approve([sbtSale.address, totalPrice], { account: buyer });
+    await sbtSale.write.purchase([nftAddrs, poas.address, totalPrice], {
       account: buyer,
     });
     await expectNFTsOwner(2);
@@ -103,10 +106,11 @@ describe("TestSBTSale", () => {
 
   it("should purchase NFTs using SMP", async () => {
     // Query price, approve SMP spending, and execute purchase
-    const totalPrice = (await p2e.simulate.queryPrice([nftAddrs, smp.address]))
-      .result;
-    await smp.write.approve([p2e.address, totalPrice], { account: buyer });
-    await p2e.write.purchase([nftAddrs, smp.address, totalPrice], {
+    const totalPrice = (
+      await sbtSale.simulate.queryPrice([nftAddrs, smp.address])
+    ).result;
+    await smp.write.approve([sbtSale.address, totalPrice], { account: buyer });
+    await sbtSale.write.purchase([nftAddrs, smp.address, totalPrice], {
       account: buyer,
     });
     await expectNFTsOwner(3);
