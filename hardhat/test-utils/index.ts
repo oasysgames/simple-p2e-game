@@ -224,7 +224,7 @@ export const deploySBTSale = async (params: {
   poas: ContractTypesMap["MockPOAS"];
   smp: ContractTypesMap["MockSMP"];
   pool: ContractTypesMap["IVaultPool"];
-  p2e: ContractTypesMap["ISimpleP2E"];
+  p2e: ContractTypesMap["ISBTSale"];
 }> => {
   const { deployContract, getContractAt } = hre.viem;
   const { deployOpts, writeOpts } = await setupDeployer();
@@ -268,7 +268,7 @@ export const deploySBTSale = async (params: {
     ],
     deployOpts
   );
-  const p2e = await getContractAt("ISimpleP2E", p2eImpl.address);
+  const p2e = await getContractAt("ISBTSale", p2eImpl.address);
 
   // Mint WOAS by depositing ETH and approve Vault for liquidity provision
   await woas.write.deposit({
@@ -326,7 +326,7 @@ export const deploySBTSale = async (params: {
 
 /**
  * @notice Deploys multiple mock NFT contracts for testing sale scenarios
- * @dev Creates the specified number of MockSimpleP2EERC721 contracts with unique
+ * @dev Creates the specified number of MockSBTSaleERC721 contracts with unique
  *      names and symbols. Each NFT contract is configured to only allow minting
  *      from the specified SBTSale contract, ensuring proper access control.
  *
@@ -348,9 +348,9 @@ export const deployMockERC721 = async (
   simpleP2E: `0x${string}`,
   count: number
 ) => {
-  const nfts: ContractTypesMap["MockSimpleP2EERC721"][] = [];
+  const nfts: ContractTypesMap["MockSBTSaleERC721"][] = [];
   for (let i = 0; i < count; i++) {
-    const nft = await hre.viem.deployContract("MockSimpleP2EERC721", [
+    const nft = await hre.viem.deployContract("MockSBTSaleERC721", [
       `NFT${i + 1}`,
       `NFT${i + 1}`,
       simpleP2E,

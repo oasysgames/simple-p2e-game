@@ -2,15 +2,15 @@
 pragma solidity >=0.8.0;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {ISimpleP2EERC721} from "../interfaces/ISimpleP2EERC721.sol";
+import {ISBTSaleERC721} from "../interfaces/ISBTSaleERC721.sol";
 
 /**
- * @title MockSimpleP2EERC721
+ * @title MockSBTSaleERC721
  * @notice Mock implementation of ERC721 token for testing the sale contract
- * @dev This contract implements the ISimpleP2EERC721 interface for testing purposes.
+ * @dev This contract implements the ISBTSaleERC721 interface for testing purposes.
  *      Only the designated SBTSale contract can mint tokens.
  */
-contract MockSimpleP2EERC721 is ISimpleP2EERC721, ERC721 {
+contract MockSBTSaleERC721 is ISBTSaleERC721, ERC721 {
     /// @dev Counter for generating unique token IDs, starting from 0
     uint256 private _nextTokenId;
 

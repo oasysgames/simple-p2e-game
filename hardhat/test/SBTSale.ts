@@ -9,12 +9,12 @@ import {
 } from "@oasysgames/simple-p2e-game-hardhat/test-utils";
 
 describe("TestSBTSale", () => {
-  let p2e: ContractTypesMap["ISimpleP2E"];
+  let p2e: ContractTypesMap["ISBTSale"];
   let woas: ContractTypesMap["IWOAS"];
   let poasMinter: ContractTypesMap["MockPOASMinter"];
   let poas: ContractTypesMap["MockPOAS"];
   let smp: ContractTypesMap["MockSMP"];
-  let nfts: ContractTypesMap["MockSimpleP2EERC721"][];
+  let nfts: ContractTypesMap["MockSBTSaleERC721"][];
 
   let nativeOAS: Address;
   let buyer: Address;

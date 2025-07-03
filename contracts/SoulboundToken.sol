@@ -9,7 +9,7 @@ import {ERC721BurnableUpgradeable} from
 import {AccessControlUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
-import {ISimpleP2EERC721} from "./interfaces/ISimpleP2EERC721.sol";
+import {ISBTSaleERC721} from "./interfaces/ISBTSaleERC721.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -23,7 +23,7 @@ contract SoulboundToken is
     ERC721Upgradeable,
     ERC721BurnableUpgradeable,
     AccessControlUpgradeable,
-    ISimpleP2EERC721
+    ISBTSaleERC721
 {
     /// @dev Error for invalid owner
     error InvalidOwner();
@@ -82,7 +82,7 @@ contract SoulboundToken is
     /// @notice Mint a new token with auto-incrementing ID
     function mint(address to)
         external
-        override(ISimpleP2EERC721)
+        override(ISBTSaleERC721)
         onlyRole(MINTER_ROLE)
         returns (uint256 tokenId)
     {
