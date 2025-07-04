@@ -1,7 +1,7 @@
 # Binding Smart Contracts with TypeScript
 This project helps dApp developers integrate and interact with smart contracts using TypeScript.
 
-### Setup
+## Setup
 1. Install dependencies within the `hardhat` directory:
 
 ```sh
