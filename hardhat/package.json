@@ -24,7 +24,8 @@
     "release-build": "rm -rf dist; hardhat compile && tsc -p tsconfig.release.json && hardhat test"
   },
   "dependencies": {
-    "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0"
+    "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@oasysgames/simple-p2e-game": "file:..",
