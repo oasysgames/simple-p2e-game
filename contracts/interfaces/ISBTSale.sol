@@ -21,16 +21,16 @@ import {ISBTSaleERC721} from "./ISBTSaleERC721.sol";
  */
 interface ISBTSale {
     // Errors
-    error InvalidPaymentToken();
-    error InvalidRecipient();
-    error InvalidPaymentAmount();
-    error InvalidProtocolValue();
-    error InvalidPool();
-    error InvalidAddress();
-    error InvalidSwap(string message);
-    error NoItems();
-    error ArrayLengthMismatch();
-    error TransferFailed();
+    error InvalidPaymentToken(); // 0x56e7ec5f
+    error InvalidRecipient(); // 0x9c8d2cd2
+    error InvalidPaymentAmount(); // 0xfc512fde
+    error InvalidProtocolValue(); // 0x3c88b7e9
+    error InvalidPool(); // 0x2083cd40
+    error InvalidAddress(); // 0xe6c4247b
+    error InvalidSwap(string message); // 0x3bea1958
+    error NoItems(); // 0x0483ac36
+    error ArrayLengthMismatch(); // 0xa24a13a6
+    error TransferFailed(); // 0x90b8ec18
 
     // Events
     /// @dev Emitted when NFTs are purchased with complete protocol information

@@ -23,9 +23,7 @@ contract MockSBTSaleERC721 is ISBTSaleERC721, ERC721 {
      * @param symbol The symbol of the NFT collection
      * @param _sbtSale Address of the SBTSale contract that can mint tokens
      */
-    constructor(string memory name, string memory symbol, address _sbtSale)
-        ERC721(name, symbol)
-    {
+    constructor(string memory name, string memory symbol, address _sbtSale) ERC721(name, symbol) {
         sbtSale = _sbtSale;
     }
 
