@@ -2,10 +2,9 @@ import { config as loadEnv } from "dotenv";
 import hre from "hardhat";
 import {
   Address,
-  encodeFunctionData,
-  decodeFunctionResult,
   zeroAddress,
 } from "viem";
+import { getChain } from "../config/chains";
 
 // 🎮 Hey there! Welcome to the SBT purchase script!
 // Think of this as your friendly guide to buying SBTs (Soulbound Tokens) -
@@ -39,74 +38,60 @@ if (!SBTSALE_ADDRESS || !SBT_ADDRESS || !SMP_ADDRESS || !POAS_ADDRESS) {
 }
 
 /**
- * 🛒 Let's check the price tag!
- * This function is like asking "How much does this cost?" at a store
- * @param token - Which type of money do you want to use? (SMP, POAS, or ETH)
- * @returns How much it'll cost you (in the smallest units - like cents for dollars!)
- */
-async function queryPrice(token: Address): Promise<bigint> {
-  // Let's connect to the SBT shop and ask about prices!
-  const sbtSale = await hre.viem.getContractAt("ISBTSale", SBTSALE_ADDRESS);
-
-  // We're basically asking: "Hey shop, how much for one SBT if I pay with this token?"
-  const data = encodeFunctionData({
-    abi: sbtSale.abi,
-    functionName: "queryPrice",
-    args: [[SBT_ADDRESS], token], // "I want 1 SBT, and here's how I want to pay"
-  });
-
-  // Now we're making the actual "phone call" to the shop to ask for the price
-  // (This doesn't cost anything - it's just asking!)
-  const raw = (await hre.network.provider.request({
-    method: "eth_call",
-    params: [
-      {
-        to: SBTSALE_ADDRESS,
-        data,
-      },
-      "latest", // "Give me the current price, please!"
-    ],
-  })) as string;
-
-  // The shop gave us an answer, but it's in computer language - let's translate it!
-  const [price] = decodeFunctionResult({
-    abi: sbtSale.abi,
-    functionName: "queryPrice",
-  }, raw);
-
-  return price as bigint;
-}
-
-/**
  * 🎉 Time to go shopping! This is where the magic happens!
  * Think of this like going to your favorite store and buying something awesome
  * @param token - What's in your wallet today? (SMP, POAS, or ETH)
  * @param sendValue - Are you paying with ETH? (true means yes, false means no)
  */
 async function purchaseWith(token: Address, sendValue = false) {
+  const chainId = Number(await hre.network.provider.send("eth_chainId"))
+  const publicClient = await hre.viem.getPublicClient({
+    chain: getChain(chainId),
+  });
+  // Let's get your account ready - this is like showing your ID at the store
+  const [walletClient] = await hre.viem.getWalletClients({
+    chain: getChain(chainId),
+  });
+  const account = walletClient.account.address;
+
   // Let's get all our shopping tools ready! 🛍️
   // It's like getting your credit cards, cash, and shopping bags before you start
-  const sbtSale = await hre.viem.getContractAt("ISBTSale", SBTSALE_ADDRESS);  // The shop
-  const sbt = await hre.viem.getContractAt("ISBTSaleERC721", SBT_ADDRESS);     // The thing we're buying
-  const smp = await hre.viem.getContractAt("ISMP", SMP_ADDRESS);              // Your SMP wallet
-  const poas = await hre.viem.getContractAt("IPOAS", POAS_ADDRESS);           // Your POAS wallet
-
-  // Let's get your account ready - this is like showing your ID at the store
-  const [wallet] = await hre.viem.getWalletClients();
-  const account = wallet.account.address;
+  // The shop
+  const sbtSale = await hre.viem.getContractAt("ISBTSale", SBTSALE_ADDRESS, {
+    client: { public: publicClient, wallet: walletClient }
+  });
+   // The thing we're buying
+  const sbt = await hre.viem.getContractAt("ISBTSaleERC721", SBT_ADDRESS, {
+    client: { public: publicClient, wallet: walletClient }
+  });
+  // Your SMP wallet
+  const smp = await hre.viem.getContractAt("IMockSMP", SMP_ADDRESS, {
+    client: { public: publicClient, wallet: walletClient }
+  });
+  // Your POAS wallet
+  const poas = await hre.viem.getContractAt("IPOAS", POAS_ADDRESS, {
+    client: { public: publicClient, wallet: walletClient }
+  });
 
   // 💲 First things first - let's see how much this is going to cost us!
-  const price = await queryPrice(token);
+  const price = await sbtSale.read.queryPrice([[SBT_ADDRESS], token]);
   console.log(`💰 Great news! The price for this SBT is: ${price} tokens`);
 
   // 🔐 If you're paying with tokens (not ETH), we need to give the shop permission
   // It's like signing a form that says "Yes, you can take money from my account"
+  let approveHash;
+
   if (token === SMP_ADDRESS) {
     console.log("🤝 Giving the shop permission to take your SMP tokens...");
-    await smp.write.approve([SBTSALE_ADDRESS, price], { account });
+    approveHash = await smp.write.approve([SBTSALE_ADDRESS, price], { account });
   } else if (token === POAS_ADDRESS) {
     console.log("🤝 Giving the shop permission to take your POAS tokens...");
-    await poas.write.approve([SBTSALE_ADDRESS, price], { account });
+    approveHash = await poas.write.approve([SBTSALE_ADDRESS, price], { account });
+  }
+
+  if (approveHash) {
+    const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    console.log((approveReceipt.status == "success" ? "✅️" : "❌") + " approve: " + approveReceipt.status);
   }
 
   // 🎯 Here we go! Time to make the actual purchase!
@@ -114,10 +99,12 @@ async function purchaseWith(token: Address, sendValue = false) {
   const paymentMethod = token === zeroAddress ? 'ETH 💎' : 'tokens 🪙';
   console.log(`🛒 Alright, let's buy this SBT with ${paymentMethod}...`);
 
-  await sbtSale.write.purchase(
+  const purchaseHash = await sbtSale.write.purchase(
     [[SBT_ADDRESS], token, price],
     sendValue ? { account, value: price } : { account } // If paying with ETH, we include the money here
   );
+  const purchaseReceipt = await publicClient.waitForTransactionReceipt({ hash: purchaseHash });
+  console.log((purchaseReceipt.status == "success" ? "✅️" : "❌") + " purchase: " + purchaseReceipt.status);
 
   // 🎉 Let's check if our purchase worked!
   // It's like looking in your shopping bag to make sure you got what you paid for
